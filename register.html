@@ -26,6 +26,21 @@
           </div>
           <div class="form-group"><label>Password</label><input class="input" name="password" type="password" required /></div>
           <div class="form-group"><label>Confirm Password</label><input class="input" name="confirm" type="password" required /></div>
+          <div class="form-group" style="grid-column: span 2; margin-top: -6px; margin-bottom: 10px;">
+            <div class="password-requirements" style="font-size: 11px; padding: 10px 14px; border-radius: 10px; background: rgba(8, 11, 32, 0.4); border: 1px solid rgba(120, 140, 255, 0.15); display: none;">
+              <div style="font-weight: 600; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.5px;">PASSWORD REQUIREMENTS:</div>
+              <ul style="list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; padding-left: 0; margin-bottom: 8px;">
+                <li id="req-length" style="color: var(--muted); display: flex; align-items: center; gap: 6px;">✕ At least 8 characters</li>
+                <li id="req-upper" style="color: var(--muted); display: flex; align-items: center; gap: 6px;">✕ One uppercase letter</li>
+                <li id="req-lower" style="color: var(--muted); display: flex; align-items: center; gap: 6px;">✕ One lowercase letter</li>
+                <li id="req-number" style="color: var(--muted); display: flex; align-items: center; gap: 6px;">✕ One number</li>
+                <li id="req-special" style="color: var(--muted); display: flex; align-items: center; gap: 6px; grid-column: span 2;">✕ One special char (e.g. !@#$%^&*)</li>
+              </ul>
+              <div style="height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); overflow: hidden;">
+                <div id="strength-bar" style="height: 100%; width: 0%; background: var(--red); transition: width 0.3s, background-color 0.3s;"></div>
+              </div>
+            </div>
+          </div>
           <div class="form-group"><label>Profile Photo</label><input class="input" name="photo" type="file" accept="image/*" /></div>
           <div class="form-group" id="licenseBlock"><label>Driving License Number</label><input class="input" name="licenseNumber" type="text" placeholder="e.g. DL-1234567890" /></div>
         </div>

@@ -1,21 +1,21 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { 
-  getAuth, 
-  onAuthStateChanged, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  updateProfile, 
-  signOut 
+import {
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile,
+  signOut
 } from "firebase/auth";
-import { 
-  getFirestore, 
-  collection, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  updateDoc 
+import {
+  getFirestore,
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc
 } from "firebase/firestore";
 
 // Your web app's Firebase configuration
@@ -232,7 +232,7 @@ async function updateUserProfile(userId, updates) {
   function fleet() {
     if (!_fleet) {
       const cached = sessionStorage.getItem('ve_fleet');
-      if (cached) { try { _fleet = JSON.parse(cached); } catch {} }
+      if (cached) { try { _fleet = JSON.parse(cached); } catch { } }
       if (!_fleet) { _fleet = buildFleet(14); sessionStorage.setItem('ve_fleet', JSON.stringify(_fleet)); }
     }
     return _fleet;
@@ -305,12 +305,89 @@ async function updateUserProfile(userId, updates) {
     const licenseBlock = document.getElementById('licenseBlock');
     const sync = () => { licenseBlock.style.display = roleSel.value === 'driver' ? 'block' : 'none'; };
     roleSel.addEventListener('change', sync); sync();
+
+    const passwordInput = form.password;
+    const requirementsContainer = document.querySelector('.password-requirements');
+    const reqLength = document.getElementById('req-length');
+    const reqUpper = document.getElementById('req-upper');
+    const reqLower = document.getElementById('req-lower');
+    const reqNumber = document.getElementById('req-number');
+    const reqSpecial = document.getElementById('req-special');
+    const strengthBar = document.getElementById('strength-bar');
+
+    const updateRule = (el, isValid, text) => {
+      if (isValid) {
+        el.innerHTML = `✓ ${text}`;
+        el.style.color = 'var(--green)';
+        el.style.textShadow = '0 0 8px rgba(0, 255, 163, 0.3)';
+      } else {
+        el.innerHTML = `✕ ${text}`;
+        el.style.color = 'var(--muted)';
+        el.style.textShadow = 'none';
+      }
+    };
+
+    const showReqs = () => {
+      if (requirementsContainer) {
+        requirementsContainer.style.display = 'block';
+      }
+    };
+
+    if (passwordInput) {
+      passwordInput.addEventListener('focus', showReqs);
+      passwordInput.addEventListener('input', () => {
+        showReqs();
+        const val = passwordInput.value;
+
+        const hasLength = val.length >= 8;
+        const hasUpper = /[A-Z]/.test(val);
+        const hasLower = /[a-z]/.test(val);
+        const hasNumber = /[0-9]/.test(val);
+        const hasSpecial = /[^A-Za-z0-9]/.test(val);
+
+        if (reqLength) updateRule(reqLength, hasLength, 'At least 8 characters');
+        if (reqUpper) updateRule(reqUpper, hasUpper, 'One uppercase letter');
+        if (reqLower) updateRule(reqLower, hasLower, 'One lowercase letter');
+        if (reqNumber) updateRule(reqNumber, hasNumber, 'One number');
+        if (reqSpecial) updateRule(reqSpecial, hasSpecial, 'One special char');
+
+        const count = [hasLength, hasUpper, hasLower, hasNumber, hasSpecial].filter(Boolean).length;
+        const pct = (count / 5) * 100;
+        if (strengthBar) {
+          strengthBar.style.width = pct + '%';
+
+          if (count <= 2) {
+            strengthBar.style.background = 'var(--red)';
+            strengthBar.style.boxShadow = '0 0 8px var(--red)';
+          } else if (count <= 4) {
+            strengthBar.style.background = 'var(--amber)';
+            strengthBar.style.boxShadow = '0 0 8px var(--amber)';
+          } else {
+            strengthBar.style.background = 'var(--green)';
+            strengthBar.style.boxShadow = '0 0 8px var(--green)';
+          }
+        }
+      });
+    }
+
     form.addEventListener('submit', e => {
       e.preventDefault();
       const name = form.fullName.value.trim();
       const email = form.email.value.trim();
       const password = form.password.value;
       const role = form.role.value;
+
+      const hasLength = password.length >= 8;
+      const hasUpper = /[A-Z]/.test(password);
+      const hasLower = /[a-z]/.test(password);
+      const hasNumber = /[0-9]/.test(password);
+      const hasSpecial = /[^A-Za-z0-9]/.test(password);
+
+      if (!hasLength || !hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+        alert('Password does not meet all security requirements.');
+        if (passwordInput) passwordInput.focus();
+        return;
+      }
 
       if (password !== form.confirm.value) {
         alert('Passwords do not match');
@@ -668,10 +745,10 @@ async function updateUserProfile(userId, updates) {
         <div class="glass panel">
           <h3>Expense Breakdown</h3>
           ${donut([
-            { label: 'Energy', value: energyCost, color: '#00e7ff' },
-            { label: 'Maintenance', value: maint, color: '#b15cff' },
-            { label: 'Operations', value: Math.round(rev * 0.1), color: '#2a5cff' },
-          ])}
+      { label: 'Energy', value: energyCost, color: '#00e7ff' },
+      { label: 'Maintenance', value: maint, color: '#b15cff' },
+      { label: 'Operations', value: Math.round(rev * 0.1), color: '#2a5cff' },
+    ])}
         </div>
       </div>
     `;
