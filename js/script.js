@@ -1,3 +1,30 @@
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+import { 
+  getAuth, 
+  onAuthStateChanged, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  updateProfile, 
+  signOut 
+} from "firebase/auth";
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyCsgzrFpF1krUAKFcZs8-8j0TDV_qpe_V8",
+  authDomain: "verb-153c9.firebaseapp.com",
+  projectId: "verb-153c9",
+  storageBucket: "verb-153c9.firebasestorage.app",
+  messagingSenderId: "663867785414",
+  appId: "1:663867785414:web:99dbb1c312e169979817c7",
+  measurementId: "G-91RHCNJLND"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+
 /* VoltEdge EV — shared JS */
 (function () {
   // ---------- Particles ----------
@@ -37,17 +64,73 @@
   }
 
   // ---------- Auth ----------
-  function getUser() {
-    try { return JSON.parse(localStorage.getItem('ve_user') || 'null'); } catch { return null; }
+  let currentUser = null;
+  let pageInitialized = false;
+
+  function monitorAuthState() {
+    const auth = getAuth();
+    onAuthStateChanged(auth, (user) => {
+      const page = document.body.dataset.page;
+      if (user) {
+        let name = "User";
+        let role = "driver";
+        if (user.displayName) {
+          const parts = user.displayName.split("|");
+          name = parts[0];
+          role = parts[1] || "driver";
+        } else {
+          name = user.email.split("@")[0];
+          if (user.email.includes("admin")) {
+            role = "admin";
+          }
+        }
+        currentUser = {
+          uid: user.uid,
+          email: user.email,
+          name: name,
+          role: role,
+          id: role === "admin" ? "ADM-001" : "DRV-042"
+        };
+
+        if (page === 'login' || page === 'register') {
+          window.location.href = currentUser.role === 'admin' ? 'admin-dashboard.html' : 'driver-dashboard.html';
+        } else {
+          if (page && page !== currentUser.role) {
+            window.location.href = currentUser.role === 'admin' ? 'admin-dashboard.html' : 'driver-dashboard.html';
+          } else {
+            if (!pageInitialized) {
+              pageInitialized = true;
+              setProfile(currentUser);
+              if (page === 'admin') initAdmin();
+              if (page === 'driver') initDriver();
+              hideLoader();
+            }
+          }
+        }
+      } else {
+        currentUser = null;
+        if (page === 'admin' || page === 'driver') {
+          window.location.href = 'login.html';
+        } else {
+          if (!pageInitialized) {
+            pageInitialized = true;
+            if (page === 'login') initLogin();
+            if (page === 'register') initRegister();
+            hideLoader();
+          }
+        }
+      }
+    });
   }
-  function setUser(u) { localStorage.setItem('ve_user', JSON.stringify(u)); }
-  function requireAuth(role) {
-    const u = getUser();
-    if (!u) { window.location.href = 'login.html'; return null; }
-    if (role && u.role !== role) { window.location.href = u.role === 'admin' ? 'admin-dashboard.html' : 'driver-dashboard.html'; return null; }
-    return u;
+
+  function logout() {
+    const auth = getAuth();
+    signOut(auth).then(() => {
+      window.location.href = 'login.html';
+    }).catch(err => {
+      alert("Sign out failed: " + err.message);
+    });
   }
-  function logout() { localStorage.removeItem('ve_user'); window.location.href = 'login.html'; }
 
   // ---------- Dummy dataset ----------
   const BRANDS = ['Tesla Model S', 'Tesla Model 3', 'Lucid Air', 'Rivian R1T', 'BMW i4', 'Hyundai Ioniq 5', 'Polestar 2', 'Mercedes EQS', 'NIO ET7', 'Ford Mach-E'];
@@ -129,32 +212,35 @@
   document.addEventListener('DOMContentLoaded', () => {
     initParticles();
     startClock();
-    hideLoader();
-
-    const page = document.body.dataset.page;
-
-    if (page === 'login') initLogin();
-    if (page === 'register') initRegister();
-    if (page === 'admin') initAdmin();
-    if (page === 'driver') initDriver();
 
     // logout buttons
     document.querySelectorAll('[data-logout]').forEach(b => b.addEventListener('click', e => { e.preventDefault(); logout(); }));
+
+    // Start monitoring auth state
+    monitorAuthState();
   });
 
   // ---------- LOGIN ----------
   function initLogin() {
-    const u = getUser();
-    if (u) { window.location.href = u.role === 'admin' ? 'admin-dashboard.html' : 'driver-dashboard.html'; return; }
     const form = document.getElementById('loginForm');
     form.addEventListener('submit', e => {
       e.preventDefault();
       const email = form.email.value.trim();
-      const role = form.role.value;
-      if (!email) return;
-      const name = email.split('@')[0].replace(/\W/g, ' ');
-      setUser({ email, role, name: name || (role === 'admin' ? 'Admin' : 'Driver'), id: role === 'admin' ? 'ADM-001' : 'DRV-042' });
-      window.location.href = role === 'admin' ? 'admin-dashboard.html' : 'driver-dashboard.html';
+      const password = form.password.value;
+      if (!email || !password) return;
+
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const originalText = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = "⚡ Authenticating...";
+
+      const auth = getAuth();
+      signInWithEmailAndPassword(auth, email, password)
+        .catch(err => {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalText;
+          alert("Login failed: " + err.message);
+        });
     });
   }
 
@@ -167,16 +253,40 @@
     roleSel.addEventListener('change', sync); sync();
     form.addEventListener('submit', e => {
       e.preventDefault();
-      if (form.password.value !== form.confirm.value) { alert('Passwords do not match'); return; }
-      setUser({ email: form.email.value, role: form.role.value, name: form.fullName.value, id: form.role.value === 'admin' ? 'ADM-001' : 'DRV-042' });
-      window.location.href = form.role.value === 'admin' ? 'admin-dashboard.html' : 'driver-dashboard.html';
+      const name = form.fullName.value.trim();
+      const email = form.email.value.trim();
+      const password = form.password.value;
+      const role = form.role.value;
+
+      if (password !== form.confirm.value) {
+        alert('Passwords do not match');
+        return;
+      }
+
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const originalText = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = "⚡ Creating Account...";
+
+      const auth = getAuth();
+      createUserWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+          return updateProfile(userCredential.user, {
+            displayName: `${name}|${role}`
+          });
+        })
+        .catch(err => {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalText;
+          alert("Registration failed: " + err.message);
+        });
     });
   }
 
   // ---------- ADMIN ----------
   function initAdmin() {
-    const u = requireAuth('admin'); if (!u) return;
-    setProfile(u);
+    if (!currentUser) return;
+    setProfile(currentUser);
     const view = location.hash.replace('#', '') || 'dashboard';
     setActiveNav(view);
     renderAdminView(view);
@@ -545,14 +655,14 @@
 
   // ---------- DRIVER ----------
   function initDriver() {
-    const u = requireAuth('driver'); if (!u) return;
-    setProfile(u);
+    if (!currentUser) return;
+    setProfile(currentUser);
     const view = location.hash.replace('#', '') || 'home';
     setActiveNav(view);
-    renderDriverView(view, u);
+    renderDriverView(view, currentUser);
     window.addEventListener('hashchange', () => {
       const v = location.hash.replace('#', '') || 'home';
-      setActiveNav(v); renderDriverView(v, u);
+      setActiveNav(v); renderDriverView(v, currentUser);
     });
   }
 
