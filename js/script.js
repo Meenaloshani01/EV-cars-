@@ -9,6 +9,14 @@ import {
   updateProfile, 
   signOut 
 } from "firebase/auth";
+import { 
+  getFirestore, 
+  collection, 
+  doc, 
+  setDoc, 
+  getDoc, 
+  updateDoc 
+} from "firebase/firestore";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -24,6 +32,50 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
+const db = getFirestore(app);
+
+export { app, db };
+
+// ========== FIRESTORE FUNCTIONS ==========
+async function saveUserProfile(userId, profileData) {
+  try {
+    await setDoc(doc(db, "users", userId), {
+      ...profileData,
+      updatedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString()
+    });
+    return { success: true, message: "Profile saved successfully" };
+  } catch (error) {
+    console.error("Error saving profile:", error);
+    throw error;
+  }
+}
+
+async function getUserProfile(userId) {
+  try {
+    const docSnap = await getDoc(doc(db, "users", userId));
+    if (docSnap.exists()) {
+      return docSnap.data();
+    }
+    return null;
+  } catch (error) {
+    console.error("Error fetching profile:", error);
+    return null;
+  }
+}
+
+async function updateUserProfile(userId, updates) {
+  try {
+    await updateDoc(doc(db, "users", userId), {
+      ...updates,
+      updatedAt: new Date().toISOString()
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    throw error;
+  }
+}
 
 /* VoltEdge EV — shared JS */
 (function () {
@@ -66,6 +118,7 @@ const analytics = getAnalytics(app);
   // ---------- Auth ----------
   let currentUser = null;
   let pageInitialized = false;
+  let registrationInProgress = false;
 
   function monitorAuthState() {
     const auth = getAuth();
@@ -93,6 +146,7 @@ const analytics = getAnalytics(app);
         };
 
         if (page === 'login' || page === 'register') {
+          if (registrationInProgress) return; // wait for Firestore write to finish
           window.location.href = currentUser.role === 'admin' ? 'admin-dashboard.html' : 'driver-dashboard.html';
         } else {
           if (page && page !== currentUser.role) {
@@ -269,13 +323,29 @@ const analytics = getAnalytics(app);
       submitBtn.innerHTML = "⚡ Creating Account...";
 
       const auth = getAuth();
+      registrationInProgress = true;
       createUserWithEmailAndPassword(auth, email, password)
         .then((userCredential) => {
           return updateProfile(userCredential.user, {
             displayName: `${name}|${role}`
+          }).then(() => {
+            return saveUserProfile(userCredential.user.uid, {
+              fullName: name,
+              email: email,
+              role: role,
+              licenseNumber: role === 'driver' ? form.licenseNumber?.value.trim() : '',
+              phoneNumber: form.phone?.value.trim() || '',
+              address: form.address?.value.trim() || '',
+              photoUrl: null
+            });
           });
         })
+        .then(() => {
+          registrationInProgress = false;
+          window.location.href = role === 'admin' ? 'admin-dashboard.html' : 'driver-dashboard.html';
+        })
         .catch(err => {
+          registrationInProgress = false;
           submitBtn.disabled = false;
           submitBtn.innerHTML = originalText;
           alert("Registration failed: " + err.message);
@@ -424,6 +494,8 @@ const analytics = getAnalytics(app);
   }
 
   function renderLive(root, f) {
+    let dist = 0;
+    const hist = [];
     root.innerHTML = `
       <h2 class="page-title">Live Monitoring <small>Realtime telemetry</small></h2>
       <div class="grid-2">
@@ -440,10 +512,10 @@ const analytics = getAnalytics(app);
         </div>
       </div>
     `;
-    const tbody = document.querySelector('#liveTable tbody');
-    const hist = [];
+    const ds = document.getElementById('ds');
+    const dd = document.getElementById('dd');
     const update = () => {
-      f.forEach(c => { if (!c.charging) c.speed = Math.max(0, c.speed + rint(-12, 12)); });
+      f.forEach(c => { if (!c.charging) c.speed = Math.max(0, c.speed + rint(-10, 10)); });
       tbody.innerHTML = f.slice(0, 8).map(c => `<tr>
         <td><b>${c.brand}</b><br><span style="color:var(--muted);font-size:11px;">${c.id}</span></td>
         <td>${c.driver}</td>
@@ -722,6 +794,8 @@ const analytics = getAnalytics(app);
   }
 
   function driverTrip(root, c) {
+    let dist = 0;
+    const hist = [];
     root.innerHTML = `
       <h2 class="page-title">Current Trip <small>Live</small></h2>
       <div class="grid-2">
@@ -734,22 +808,24 @@ const analytics = getAnalytics(app);
           <div class="row"><span>Route</span><b>Sector 21 → Hub North</b></div>
         </div>
         <div class="glass panel">
-          <h3>Speed (60s)</h3>
+          <h3>Speed Trend</h3>
           <svg class="spark" id="dspark" style="height:160px;"></svg>
         </div>
       </div>
     `;
-    const hist = []; let dist = 0;
-    const ds = document.getElementById('ds'), dd = document.getElementById('dd');
+    const ds = document.getElementById('ds');
+    const dd = document.getElementById('dd');
     const update = () => {
       c.speed = Math.max(0, c.speed + rint(-10, 10));
       dist += c.speed / 3600 * 1.5;
       ds.textContent = c.speed;
       dd.textContent = dist.toFixed(2) + ' km';
-      hist.push(c.speed); if (hist.length > 30) hist.shift();
+      hist.push(c.speed);
+      if (hist.length > 30) hist.shift();
       spark(document.getElementById('dspark'), hist);
     };
-    update(); const t = setInterval(update, 1500);
+    update();
+    const t = setInterval(update, 1500);
     window.addEventListener('hashchange', () => clearInterval(t), { once: true });
   }
 
