@@ -282,3 +282,32 @@ tbody tr:hover { background: rgba(120,140,255,0.05); }
 
 /* Footer mini */
 .foot-note { text-align:center; color: var(--muted); font-size: 12px; margin-top: 18px; }
+
+/* Custom Additions */
+.overspeed-row {
+  border-left: 4px solid var(--red);
+  background: rgba(255, 59, 107, 0.03);
+  transition: background 0.2s;
+}
+.overspeed-row:hover {
+  background: rgba(255, 59, 107, 0.08) !important;
+}
+.category-panel {
+  transition: transform 0.2s, box-shadow 0.2s;
+  margin-bottom: 8px;
+}
+.category-panel:hover {
+  box-shadow: 0 0 20px rgba(177, 92, 255, 0.15);
+}
+.category-header:hover {
+  opacity: 0.9;
+}
+.revenue-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+.revenue-table th, .revenue-table td {
+  padding: 10px;
+}
