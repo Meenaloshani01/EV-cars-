@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Driver Console · VoltEdge EV</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="driver">
+<div class="loader"><div><div class="ring2"></div><p>SYNCING VEHICLE…</p></div></div>
+<div class="particles"></div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo"><div class="ring"></div><b>VOLTEDGE</b></div>
+    <nav class="nav">
+      <a href="#home" data-view="home"><span class="ic">▦</span> Dashboard</a>
+      <a href="#vehicle" data-view="vehicle"><span class="ic">🚗</span> My Vehicle</a>
+      <a href="#trip" data-view="trip"><span class="ic">📍</span> Current Trip</a>
+      <a href="#health" data-view="health"><span class="ic">🔋</span> Vehicle Health</a>
+      <a href="#perf" data-view="perf"><span class="ic">📈</span> My Performance</a>
+      <a href="#" data-logout><span class="ic">⎋</span> Logout</a>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <div class="search"><input class="input" placeholder="Search trips, alerts…" /></div>
+      <div class="top-right">
+        <span id="liveClock"></span>
+        <button class="icon-btn">🔔<span class="badge">1</span></button>
+        <div class="profile"><div class="avatar">D</div><span class="name">Driver</span></div>
+      </div>
+    </div>
+    <div id="view"></div>
+  </main>
+</div>
+<script type="module" src="js/script.js"></script>
+</body>
+</html>
