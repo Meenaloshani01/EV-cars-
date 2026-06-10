@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Admin Console · VoltEdge EV</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="admin">
+<div class="loader"><div><div class="ring2"></div><p>LOADING CONSOLE…</p></div></div>
+<div class="particles"></div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo"><div class="ring"></div><b>VOLTEDGE</b></div>
+    <nav class="nav">
+      <a href="#dashboard" data-view="dashboard"><span class="ic">▦</span> Dashboard</a>
+      <a href="#garage" data-view="garage"><span class="ic">🚗</span> EV Garage</a>
+      <a href="#live" data-view="live"><span class="ic">📡</span> Live Monitoring</a>
+      <a href="#battery" data-view="battery"><span class="ic">🔋</span> Battery Analytics</a>
+      <a href="#driver" data-view="driver"><span class="ic">👤</span> Driver Analysis</a>
+      <a href="#maintenance" data-view="maintenance"><span class="ic">🔧</span> Maintenance</a>
+      <a href="#revenue" data-view="revenue"><span class="ic">💹</span> Revenue Analytics</a>
+      <a href="#reports" data-view="reports"><span class="ic">📄</span> Reports</a>
+      <a href="#" data-logout><span class="ic">⎋</span> Logout</a>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <div class="search"><input class="input" placeholder="Search vehicles, drivers, alerts…" /></div>
+      <div class="top-right">
+        <span id="liveClock"></span>
+        <button class="icon-btn">🔔<span class="badge">3</span></button>
+        <div class="profile"><div class="avatar">A</div><span class="name">Admin</span></div>
+      </div>
+    </div>
+    <div id="view"></div>
+  </main>
+</div>
+<script type="module" src="js/script.js"></script>
+</body>
+</html>

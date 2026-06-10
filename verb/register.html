@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Register · VoltEdge EV</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="register">
+<div class="loader"><div><div class="ring2"></div><p>INITIALIZING…</p></div></div>
+<div class="particles"></div>
+<div class="auth-wrap">
+  <div class="auth-card glass neon-border" style="grid-template-columns: 1fr;">
+    <div>
+      <div class="brand-mark"><span class="dot"></span><span>VoltEdge EV</span></div>
+      <h1>Create Your Account</h1>
+      <p class="tagline">Join the next-gen EV fleet network.</p>
+      <div class="divider"></div>
+      <form id="regForm" autocomplete="off">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group"><label>Full Name</label><input class="input" name="fullName" required /></div>
+          <div class="form-group"><label>Email</label><input class="input" name="email" type="email" required /></div>
+          <div class="form-group"><label>Phone</label><input class="input" name="phone" required /></div>
+          <div class="form-group"><label>Role</label>
+            <select class="input" name="role"><option value="admin">Admin</option><option value="driver">Driver</option></select>
+          </div>
+          <div class="form-group"><label>Password</label><input class="input" name="password" type="password" required /></div>
+          <div class="form-group"><label>Confirm Password</label><input class="input" name="confirm" type="password" required /></div>
+          <div class="form-group" style="grid-column: span 2; margin-top: -6px; margin-bottom: 10px;">
+            <div class="password-requirements" style="font-size: 11px; padding: 10px 14px; border-radius: 10px; background: rgba(8, 11, 32, 0.4); border: 1px solid rgba(120, 140, 255, 0.15); display: none;">
+              <div style="font-weight: 600; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.5px;">PASSWORD REQUIREMENTS:</div>
+              <ul style="list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; padding-left: 0; margin-bottom: 8px;">
+                <li id="req-length" style="color: var(--muted); display: flex; align-items: center; gap: 6px;">✕ At least 8 characters</li>
+                <li id="req-upper" style="color: var(--muted); display: flex; align-items: center; gap: 6px;">✕ One uppercase letter</li>
+                <li id="req-lower" style="color: var(--muted); display: flex; align-items: center; gap: 6px;">✕ One lowercase letter</li>
+                <li id="req-number" style="color: var(--muted); display: flex; align-items: center; gap: 6px;">✕ One number</li>
+                <li id="req-special" style="color: var(--muted); display: flex; align-items: center; gap: 6px; grid-column: span 2;">✕ One special char (e.g. !@#$%^&*)</li>
+              </ul>
+              <div style="height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); overflow: hidden;">
+                <div id="strength-bar" style="height: 100%; width: 0%; background: var(--red); transition: width 0.3s, background-color 0.3s;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group"><label>Profile Photo</label><input class="input" name="photo" type="file" accept="image/*" /></div>
+          <div class="form-group" id="licenseBlock"><label>Driving License Number</label><input class="input" name="licenseNumber" type="text" placeholder="e.g. DL-1234567890" /></div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+          <button class="btn" type="submit">⚡ Register</button>
+          <a class="btn ghost" href="login.html">Back to Login</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script type="module" src="js/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Login · VoltEdge EV</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="login">
+<div class="loader"><div><div class="ring2"></div><p>SECURE CHANNEL…</p></div></div>
+<div class="particles"></div>
+<div class="auth-wrap">
+  <div class="auth-card glass neon-border">
+    <div class="auth-left">
+      <div class="brand-mark"><span class="dot"></span><span>VoltEdge EV</span></div>
+      <h1>Access Console</h1>
+      <p class="tagline">Sign in to your VoltEdge command center.</p>
+      <div class="divider"></div>
+      <form id="loginForm" autocomplete="off">
+        <div class="form-group"><label>Email</label><input class="input" name="email" type="email" required placeholder="you@voltedge.io" /></div>
+        <div class="form-group"><label>Password</label><input class="input" name="password" type="password" required placeholder="••••••••" /></div>
+        <div class="form-group"><label>Role</label>
+          <select name="role" class="input"><option value="admin">Admin</option><option value="driver">Driver</option></select>
+        </div>
+        <button class="btn block" type="submit">⚡ Login</button>
+        <div style="display:flex; justify-content:space-between; margin-top:14px;">
+          <a class="link" href="#">Forgot Password?</a>
+          <a class="link" href="register.html">Create account →</a>
+        </div>
+      </form>
+    </div>
+    <div class="battery-art">
+      <div class="battery"><div class="fill"></div><div class="bolt">⚡</div></div>
+    </div>
+  </div>
+</div>
+<script type="module" src="js/script.js"></script>
+</body>
+</html>
