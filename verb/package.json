@@ -1,0 +1,17 @@
+{
+  "name": "voltedge-ai",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1"
+  },
+  "dependencies": {
+    "firebase": "^12.14.0",
+    "xlsx": "^0.18.5"
+  }
+}
