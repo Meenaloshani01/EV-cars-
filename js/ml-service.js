@@ -48,9 +48,15 @@ export async function predictRange(vehicleData) {
       throw new Error(data.error || 'Prediction failed');
     }
 
+    // Additional safety: ensure prediction doesn't exceed max range
+    let predictedRange = data.predicted_range_km;
+    if (data.car_specs && data.car_specs.max_range_km) {
+      predictedRange = Math.min(predictedRange, data.car_specs.max_range_km);
+    }
+
     return {
       success: true,
-      predictedRange: data.predicted_range_km,
+      predictedRange: predictedRange,
       inputs: data.inputs,
       specs: data.car_specs
     };

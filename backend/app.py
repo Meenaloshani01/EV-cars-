@@ -173,6 +173,10 @@ def predict_range():
         prediction = model.predict(input_scaled)
         predicted_range = max(0, round(float(prediction[0]), 2))
         
+        # Cap prediction at max_range_km (cannot exceed manufacturer's max range)
+        if predicted_range > max_range_km:
+            predicted_range = max_range_km
+        
         return jsonify({
             'success': True,
             'predicted_range_km': predicted_range,
