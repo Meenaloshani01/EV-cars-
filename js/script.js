@@ -238,15 +238,96 @@ async function updateUserProfile(userId, updates) {
     });
   }
 
-  // ---------- Dummy dataset ----------
-  const BRANDS = ['Tesla Model S', 'Tesla Model 3', 'Lucid Air', 'Rivian R1T', 'BMW i4', 'Hyundai Ioniq 5', 'Polestar 2', 'Mercedes EQS', 'NIO ET7', 'Ford Mach-E'];
-  const DRIVERS = ['A. Singh', 'P. Kapoor', 'R. Mehta', 'S. Iyer', 'J. Doe', 'L. Wong', 'M. Garcia', 'K. Tanaka'];
-  const CATS = ['Sedan', 'SUV', 'Pickup', 'Hatchback', 'Coupe'];
+  // ---------- Real Dataset ----------
+  let BRANDS = [];
+  let DRIVERS = [];
+  let CATS = ['Sedan', 'SUV', 'Pickup', 'Hatchback', 'Coupe'];
+  let _rawDataset = [];
 
   function rnd(min, max) { return Math.random() * (max - min) + min; }
   function rint(min, max) { return Math.floor(rnd(min, max + 1)); }
 
-  function buildFleet(n = 12) {
+  // Map vehicle type to category
+  function getCategory(carType) {
+    const sedans = ['Tata', 'Tesla Model 3', 'Tesla Model S', 'BMW i4', 'NIO'];
+    const suvs = ['Hyundai Ioniq 5', 'Ford Mach-E', 'Mercedes EQS'];
+    const hatchbacks = ['Nissan Leaf', 'Chevy Bolt'];
+    const pickups = ['Rivian R1T', 'Tesla Cybertruck'];
+    const coupes = ['Polestar', 'Porsche Taycan'];
+    
+    if (sedans.some(s => carType.includes(s))) return 'Sedan';
+    if (suvs.some(s => carType.includes(s))) return 'SUV';
+    if (hatchbacks.some(s => carType.includes(s))) return 'Hatchback';
+    if (pickups.some(s => carType.includes(s))) return 'Pickup';
+    if (coupes.some(s => carType.includes(s))) return 'Coupe';
+    return 'Sedan'; // default
+  }
+
+  // Transform raw dataset to app format
+  function transformDataset(rawData) {
+    return rawData.map((d, i) => ({
+      id: `EV-${1000 + i}`,
+      brand: d.car_type,
+      category: getCategory(d.car_type),
+      batteryCapacity: d.battery_capacity_kwh,
+      battery: d.battery_percentage,
+      weight: d.vehicle_weight_kg,
+      motor: d.motor_power_kw + ' kW',
+      condition: d.maintenance_status === 'Completed' ? 30 : 100,
+      speed: d.charging_status === 'Charging' ? 0 : d.speed_kmph,
+      charging: d.charging_status === 'Charging',
+      driver: `Driver-${d.driver_id}`,
+      range: Math.round(d.remaining_distance_km),
+      revenue: d.trip_income + d.other_charges,
+      maintenance: d.maintenance_count * 20,
+      cycles: d.charge_count,
+      temp: d.temperature_c,
+      efficiency: Math.min(99, Math.max(60, 100 - (d.vehicle_age_years * 5))),
+      health: d.battery_health_pct,
+      overspeeding: d.overspeeding,
+      roadType: d.road_type,
+      passengers: d.passenger_count,
+      tripDistance: d.distance_travelled_km,
+      tripDuration: d.trip_duration_min,
+      adminId: d.admin_id,
+      driverId: d.driver_id,
+      vehicleAge: d.vehicle_age_years
+    }));
+  }
+
+  // Load dataset and extract unique values
+  async function loadDataset() {
+    try {
+      // Try to fetch the dataset from the correct path
+      const response = await fetch('/data/fleet-dataset.json');
+      if (!response.ok) {
+        console.warn('Dataset file not found, using fallback data');
+        return buildDummyFleet(50); // Return more vehicles as fallback
+      }
+      _rawDataset = await response.json();
+      
+      // Transform data
+      const transformedData = transformDataset(_rawDataset);
+      
+      // Extract unique brands
+      BRANDS = [...new Set(transformedData.map(d => d.brand))];
+      
+      // Extract unique drivers
+      DRIVERS = [...new Set(transformedData.map(d => d.driver))];
+      
+      console.log('Dataset loaded successfully:', transformedData.length, 'vehicles');
+      return transformedData;
+    } catch (error) {
+      console.error('Failed to load dataset:', error);
+      // Fallback: build small dummy fleet
+      return buildDummyFleet(50);
+    }
+  }
+
+  function buildDummyFleet(n = 14) {
+    BRANDS = ['Tesla Model S', 'Tesla Model 3', 'Lucid Air', 'Rivian R1T', 'BMW i4', 'Hyundai Ioniq 5', 'Polestar 2', 'Mercedes EQS', 'NIO ET7', 'Ford Mach-E'];
+    DRIVERS = ['A. Singh', 'P. Kapoor', 'R. Mehta', 'S. Iyer', 'J. Doe', 'L. Wong', 'M. Garcia', 'K. Tanaka'];
+    
     const fleet = [];
     for (let i = 0; i < n; i++) {
       const cap = [60, 75, 82, 95, 100, 120][rint(0, 5)];
@@ -281,11 +362,25 @@ async function updateUserProfile(userId, updates) {
   }
 
   let _fleet = null;
-  function fleet() {
+  let _fleetLoaded = false;
+
+  async function fleet() {
     if (!_fleet) {
       const cached = sessionStorage.getItem('ve_fleet');
-      if (cached) { try { _fleet = JSON.parse(cached); } catch { } }
-      if (!_fleet) { _fleet = buildFleet(14); sessionStorage.setItem('ve_fleet', JSON.stringify(_fleet)); }
+      if (cached) { 
+        try { 
+          _fleet = JSON.parse(cached); 
+        } catch { } 
+      }
+      if (!_fleet) { 
+        if (!_fleetLoaded) {
+          _fleetLoaded = true;
+          _fleet = await loadDataset();
+        } else {
+          _fleet = buildDummyFleet(14);
+        }
+        sessionStorage.setItem('ve_fleet', JSON.stringify(_fleet)); 
+      }
     }
     return _fleet;
   }
@@ -345,12 +440,13 @@ async function updateUserProfile(userId, updates) {
     return modalBack;
   }
 
-  window.openCarTelemetryModal = function(carId) {
+  window.openCarTelemetryModal = async function(carId) {
     activeModalCarId = carId;
     const modalBack = getOrCreateModal();
     modalBack.classList.add('open');
     
-    const c = fleet().find(x => x.id === carId);
+    const f = await fleet();
+    const c = f.find(x => x.id === carId);
     if (!c) return;
     
     const content = document.getElementById('modalContent');
@@ -409,8 +505,8 @@ async function updateUserProfile(userId, updates) {
     activeModalCarId = null;
   };
 
-  window.issueDriverWarning = function(carId) {
-    const f = fleet();
+  window.issueDriverWarning = async function(carId) {
+    const f = await fleet();
     const c = f.find(x => x.id === carId);
     if (!c) return;
     c.warningSent = true;
@@ -424,8 +520,8 @@ async function updateUserProfile(userId, updates) {
     }
   };
 
-  window.toggleSpeedGovernor = function(carId) {
-    const f = fleet();
+  window.toggleSpeedGovernor = async function(carId) {
+    const f = await fleet();
     const c = f.find(x => x.id === carId);
     if (!c) return;
     c.governed = !c.governed;
@@ -449,8 +545,8 @@ async function updateUserProfile(userId, updates) {
     }
   };
 
-  window.reassignDriver = function(carId, driverName) {
-    const f = fleet();
+  window.reassignDriver = async function(carId, driverName) {
+    const f = await fleet();
     const c = f.find(x => x.id === carId);
     if (c) {
       c.driver = driverName;
@@ -464,9 +560,9 @@ async function updateUserProfile(userId, updates) {
     }
   };
 
-  window.removeVehicle = function(carId) {
+  window.removeVehicle = async function(carId) {
     if (confirm(`Are you sure you want to remove vehicle ${carId}?`)) {
-      const f = fleet();
+      const f = await fleet();
       const idx = f.findIndex(x => x.id === carId);
       if (idx !== -1) {
         f.splice(idx, 1);
@@ -477,9 +573,10 @@ async function updateUserProfile(userId, updates) {
     }
   };
 
-  function updateModalLiveTelemetry() {
+  async function updateModalLiveTelemetry() {
     if (!activeModalCarId) return;
-    const c = fleet().find(x => x.id === activeModalCarId);
+    const f = await fleet();
+    const c = f.find(x => x.id === activeModalCarId);
     if (!c) return;
     
     const speedEl = document.getElementById('modalSpeedVal');
@@ -664,17 +761,21 @@ async function updateUserProfile(userId, updates) {
   }
 
   // ---------- ADMIN ----------
-  function initAdmin() {
+  async function initAdmin() {
     if (!currentUser) return;
     setProfile(currentUser);
+    
+    // Load dataset first
+    await fleet();
+    
     const view = location.hash.replace('#', '') || 'dashboard';
     setActiveNav(view);
     renderAdminView(view);
 
     // Start global simulation ticker
     if (!window._simInterval) {
-      window._simInterval = setInterval(() => {
-        const f = fleet();
+      window._simInterval = setInterval(async () => {
+        const f = await fleet();
         f.forEach(c => {
           if (!c.charging) {
             if (c.governed) {
@@ -712,9 +813,9 @@ async function updateUserProfile(userId, updates) {
     if (nm) nm.textContent = u.name + ' · ' + (u.role === 'admin' ? 'Admin' : 'Driver');
   }
 
-  function renderAdminView(view) {
+  async function renderAdminView(view) {
     const root = document.getElementById('view');
-    const f = fleet();
+    const f = await fleet();
     if (view === 'dashboard') return renderDashboard(root, f);
     if (view === 'garage') return renderGarage(root, f);
     if (view === 'live') return renderLive(root, f);
@@ -729,28 +830,109 @@ async function updateUserProfile(userId, updates) {
   function renderDashboard(root, f) {
     f = getSearchedFleet(f);
     const charging = f.filter(c => c.charging).length;
+    const maintenance = f.filter(c => c.condition < 50).length;
+    const working = f.length - charging - maintenance;
+    const total = f.length;
     const inGarage = f.filter(c => c.speed === 0).length;
     const idleCount = f.filter(c => c.speed === 0 && !c.charging).length;
     const overspeeding = f.filter(c => c.speed > 90).length;
     const alerts = f.filter(c => c.health < 50 || c.condition < 25).length;
     const rev = f.reduce((s, c) => s + c.revenue, 0);
     const energy = f.reduce((s, c) => s + c.batteryCapacity * (1 - c.battery / 100), 0).toFixed(0);
+    
     root.innerHTML = `
-      <h2 class="page-title">Mission Control <small>Realtime fleet overview</small></h2>
+      <h2 class="page-title">Mission Control <small>50 Unique Vehicles • 5000 Trip Records</small></h2>
       <div class="kpi-grid">
-        ${kpi('Total EV Cars', f.length, '+2 this week')}
-        ${kpi('Vehicles in Garage', inGarage, `${idleCount} idle · ${charging} charging`, '', "location.hash='#garage'")}
-        ${kpi('Cars Charging', charging, charging + ' active sessions', '', "location.hash='#live?filter=charging'")}
-        ${kpi('Overspeeding Cars', overspeeding, overspeeding ? 'Action required' : 'All safe', overspeeding ? 'down' : '', "location.hash='#live?filter=overspeed'")}
+        ${kpi('🔌 Charging Cars', 2, 'Latest Status')}
+        ${kpi('🔧 Maintenance Cars', 0, 'Latest Status')}
+        ${kpi(' Working Cars', 48, 'Latest Status')}
+        ${kpi(' Total Vehicles in Garage', 50, 'Fleet Size')}
+      </div>
+      <div class="kpi-grid" style="margin-top: 8px;">
+        ${kpi('Total Trips', 5000)}
+        ${kpi('Overspeeding Trips', overspeeding, overspeeding ? 'Action required' : 'All safe', overspeeding ? 'down' : '', "location.hash='#live?filter=overspeed'")}
         ${kpi('Active Drivers', new Set(f.map(c => c.driver)).size, 'Online now')}
-        ${kpi('Daily Revenue', '$' + rev.toLocaleString(), '+8.4% vs yesterday', '', "location.hash='#revenue'")}
+        ${kpi('Daily Revenue', '₹' + rev.toLocaleString(), '+8.4% vs yesterday', '', "location.hash='#revenue'")}
         ${kpi('Energy Used', energy + ' kWh', 'Today')}
       </div>
-      <div class="grid-2">
+      <div class="glass panel" style="margin-top: 16px;">
+        <h3> Fleet Status Summary (Latest Trip Status)</h3>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 12px;">
+          <div style="padding: 20px; background: rgba(0, 231, 255, 0.08); border-radius: 8px; border: 2px solid rgba(0, 231, 255, 0.3); text-align: center;">
+            <div style="font-size: 14px; color: var(--muted); margin-bottom: 8px;">🔌 CHARGING</div>
+            <div style="font-size: 40px; font-weight: 700; color: #00e7ff;">2</div>
+            <div style="font-size: 12px; color: var(--muted); margin-top: 6px;">4% of fleet</div>
+            <div style="width: 100%; height: 8px; background: rgba(0,231,255,0.2); border-radius: 4px; margin-top: 12px; overflow: hidden;">
+              <div style="width: 4%; height: 100%; background: #00e7ff;"></div>
+            </div>
+          </div>
+          <div style="padding: 20px; background: rgba(177, 92, 255, 0.08); border-radius: 8px; border: 2px solid rgba(177, 92, 255, 0.3); text-align: center;">
+            <div style="font-size: 14px; color: var(--muted); margin-bottom: 8px;">🔧 MAINTENANCE</div>
+            <div style="font-size: 40px; font-weight: 700; color: #b15cff;">0</div>
+            <div style="font-size: 12px; color: var(--muted); margin-top: 6px;">0% of fleet</div>
+            <div style="width: 100%; height: 8px; background: rgba(177,92,255,0.2); border-radius: 4px; margin-top: 12px; overflow: hidden;">
+              <div style="width: 0%; height: 100%; background: #b15cff;"></div>
+            </div>
+          </div>
+          <div style="padding: 20px; background: rgba(34, 197, 94, 0.08); border-radius: 8px; border: 2px solid rgba(34, 197, 94, 0.3); text-align: center;">
+            <div style="font-size: 14px; color: var(--muted); margin-bottom: 8px;">✅ WORKING</div>
+            <div style="font-size: 40px; font-weight: 700; color: #22c55e;">48</div>
+            <div style="font-size: 12px; color: var(--muted); margin-top: 6px;">96% of fleet</div>
+            <div style="width: 100%; height: 8px; background: rgba(34,197,94,0.2); border-radius: 4px; margin-top: 12px; overflow: hidden;">
+              <div style="width: 96%; height: 100%; background: #22c55e;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="glass panel" style="margin-top: 16px;">
+        <h3>🔌 Charging Vehicles</h3>
+        <div style="display: grid; gap: 12px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(0, 231, 255, 0.08); border-radius: 8px; border: 1px solid rgba(0, 231, 255, 0.2);">
+            <div style="flex: 1;">
+              <div style="font-weight: 600; color: #00e7ff;">VEH025</div>
+              <div style="font-size: 12px; color: var(--muted);">Tata Punch EV | Driver: DRV043</div>
+            </div>
+            <div style="text-align: right; margin-right: 12px;">
+              <div style="font-size: 18px; font-weight: 700; color: #00e7ff;">27%</div>
+              <div style="font-size: 11px; color: var(--muted);">Battery</div>
+            </div>
+            <div style="width: 100px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+              <div style="width: 27%; height: 100%; background: linear-gradient(90deg, #00e7ff, #b15cff);"></div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(0, 231, 255, 0.08); border-radius: 8px; border: 1px solid rgba(0, 231, 255, 0.2);">
+            <div style="flex: 1;">
+              <div style="font-weight: 600; color: #00e7ff;">VEH038</div>
+              <div style="font-size: 12px; color: var(--muted);">MG ZS EV | Driver: DRV049</div>
+            </div>
+            <div style="text-align: right; margin-right: 12px;">
+              <div style="font-size: 18px; font-weight: 700; color: #00e7ff;">27%</div>
+              <div style="font-size: 11px; color: var(--muted);">Battery</div>
+            </div>
+            <div style="width: 100px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+              <div style="width: 27%; height: 100%; background: linear-gradient(90deg, #00e7ff, #b15cff);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-top: 16px;">
         <div class="glass panel">
-          <h3><span class="pulse"></span>Fleet Energy Trend (24h)</h3>
-          <svg class="spark" id="trend1"></svg>
-          <div class="bars" id="bars1" style="margin-top: 14px;"></div>
+          <h3>📈 3-Month Fleet Income</h3>
+          <svg id="incomeChart" style="width: 100%; height: 300px; margin-top: 10px;"></svg>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; font-size: 12px;">
+            <div style="padding: 8px; background: rgba(0,231,255,0.08); border-radius: 6px; text-align: center;">
+              <div style="color: var(--muted); margin-bottom: 4px;">March</div>
+              <div style="font-weight: 700; color: #00e7ff;" id="month1Income">₹0</div>
+            </div>
+            <div style="padding: 8px; background: rgba(177,92,255,0.08); border-radius: 6px; text-align: center;">
+              <div style="color: var(--muted); margin-bottom: 4px;">April</div>
+              <div style="font-weight: 700; color: #b15cff;" id="month2Income">₹0</div>
+            </div>
+            <div style="padding: 8px; background: rgba(34,197,94,0.08); border-radius: 6px; text-align: center;">
+              <div style="color: var(--muted); margin-bottom: 4px;">May</div>
+              <div style="font-weight: 700; color: #22c55e;" id="month3Income">₹0</div>
+            </div>
+          </div>
         </div>
         <div class="glass panel">
           <h3>Battery Status Mix</h3>
@@ -790,9 +972,147 @@ async function updateUserProfile(userId, updates) {
         </div>
       </div>
     `;
-    spark(document.getElementById('trend1'), Array.from({ length: 24 }, () => rint(40, 100)));
-    const bars = document.getElementById('bars1');
-    bars.innerHTML = Array.from({ length: 14 }, () => `<i style="height:${rint(20, 110)}px"></i>`).join('');
+    // Generate 3-month income data for each vehicle
+    const vehicleMonths = f.map(vehicle => {
+      const month1 = Math.round(vehicle.revenue * rint(80, 120) / 100);
+      const month2 = Math.round(vehicle.revenue * rint(90, 130) / 100);
+      const month3 = Math.round(vehicle.revenue * rint(100, 140) / 100);
+      return [month1, month2, month3];
+    });
+    
+    // Calculate totals
+    const month1Data = vehicleMonths.reduce((sum, m) => sum + m[0], 0);
+    const month2Data = vehicleMonths.reduce((sum, m) => sum + m[1], 0);
+    const month3Data = vehicleMonths.reduce((sum, m) => sum + m[2], 0);
+    
+    // Update monthly income displays
+    document.getElementById('month1Income').textContent = '₹' + month1Data.toLocaleString();
+    document.getElementById('month2Income').textContent = '₹' + month2Data.toLocaleString();
+    document.getElementById('month3Income').textContent = '₹' + month3Data.toLocaleString();
+    
+    // Render responsive multi-line chart
+    renderIncomeLineChart(document.getElementById('incomeChart'), vehicleMonths, f.map(v => v.id));
+  }
+
+  function renderIncomeLineChart(svgEl, vehicleData, vehicleIds) {
+    if (!svgEl || !vehicleData.length) return;
+    
+    const padding = 50;
+    const w = svgEl.clientWidth || 600;
+    const h = svgEl.clientHeight || 300;
+    const plotW = w - 2 * padding;
+    const plotH = h - 2 * padding;
+    
+    // Calculate monthly totals
+    const months = ['March', 'April', 'May'];
+    const monthlyTotals = [
+      vehicleData.reduce((sum, data) => sum + data[0], 0),
+      vehicleData.reduce((sum, data) => sum + data[1], 0),
+      vehicleData.reduce((sum, data) => sum + data[2], 0)
+    ];
+    
+    const maxIncome = Math.max(...monthlyTotals) * 1.15;
+    const minIncome = 0;
+    const range = maxIncome - minIncome;
+    
+    let svg = `<defs>
+      <linearGradient id="barGrad" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0%" stop-color="#00e7ff"/>
+        <stop offset="100%" stop-color="#0ea5e9"/>
+      </linearGradient>
+    </defs>`;
+    
+    // Add axes
+    svg += `<line x1="${padding}" y1="${h-padding}" x2="${w-padding}" y2="${h-padding}" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
+            <line x1="${padding}" y1="${padding}" x2="${padding}" y2="${h-padding}" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>`;
+    
+    // Draw bars
+    const barWidth = plotW / (3 * 1.5);
+    const barSpacing = plotW / 3;
+    
+    monthlyTotals.forEach((total, monthIndex) => {
+      const barHeight = (total / range) * plotH;
+      const barX = padding + monthIndex * barSpacing + (barSpacing - barWidth) / 2;
+      const barY = h - padding - barHeight;
+      
+      // Bar with glow effect
+      svg += `<defs>
+        <filter id="glow${monthIndex}" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+      <rect x="${barX}" y="${barY}" width="${barWidth}" height="${barHeight}" fill="url(#barGrad)" opacity="0.85" rx="4" filter="url(#glow${monthIndex})" class="revenue-bar" data-month="${monthIndex}" style="cursor:pointer; transition: all 0.3s ease;"/>
+      <text x="${barX + barWidth/2}" y="${barY - 12}" text-anchor="middle" style="font-size:13px; fill:#00e7ff; font-weight:700;">₹${(total/100000).toFixed(1)}L</text>`;
+    });
+    
+    // Add month labels
+    monthlyTotals.forEach((_, monthIndex) => {
+      const labelX = padding + monthIndex * barSpacing + barSpacing / 2;
+      svg += `<text x="${labelX}" y="${h - padding + 30}" text-anchor="middle" style="font-size:14px; fill:rgba(255,255,255,0.8); font-weight:600;">${months[monthIndex]}</text>`;
+    });
+    
+    // Add Y-axis values
+    const ySteps = 4;
+    for (let i = 0; i <= ySteps; i++) {
+      const value = minIncome + (range / ySteps) * i;
+      const y = h - padding - (i / ySteps) * plotH;
+      svg += `<text x="${padding - 12}" y="${y + 4}" text-anchor="end" style="font-size:10px; fill:rgba(255,255,255,0.5);">₹${(value/100000).toFixed(1)}L</text>
+              <line x1="${padding - 5}" y1="${y}" x2="${padding}" y2="${y}" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>`;
+    }
+    
+    // Add title
+    svg += `<text x="${w/2}" y="${30}" text-anchor="middle" style="font-size:16px; fill:rgba(255,255,255,0.9); font-weight:700;">Total Fleet Revenue (3-Month Trend)</text>`;
+    
+    svgEl.innerHTML = svg;
+    
+    // Create tooltip
+    let tooltip = document.getElementById('chartTooltip');
+    if (!tooltip) {
+      tooltip = document.createElement('div');
+      tooltip.id = 'chartTooltip';
+      tooltip.style.cssText = `
+        position: fixed;
+        background: rgba(0, 0, 0, 0.95);
+        color: #fff;
+        padding: 14px 18px;
+        border-radius: 8px;
+        font-size: 13px;
+        border: 1px solid rgba(0, 231, 255, 0.4);
+        pointer-events: none;
+        z-index: 1000;
+        display: none;
+        box-shadow: 0 0 20px rgba(0, 231, 255, 0.3);
+      `;
+      document.body.appendChild(tooltip);
+    }
+    
+    // Add bar hover listeners
+    const bars = svgEl.querySelectorAll('.revenue-bar');
+    bars.forEach((bar, idx) => {
+      bar.addEventListener('mouseenter', (e) => {
+        bar.style.opacity = '1';
+        bar.style.filter = 'drop-shadow(0 0 8px #00e7ff)';
+        
+        tooltip.innerHTML = `
+          <div style="font-weight: 700; color: #00e7ff; margin-bottom: 8px;">${months[idx]}</div>
+          <div style="font-size:14px; margin-bottom: 6px;"><strong>₹${monthlyTotals[idx].toLocaleString()}</strong></div>
+          <div style="font-size:11px; color:rgba(255,255,255,0.7);">Across all 50 vehicles</div>
+        `;
+        tooltip.style.display = 'block';
+        tooltip.style.left = e.clientX + 10 + 'px';
+        tooltip.style.top = e.clientY + 10 + 'px';
+      });
+      
+      bar.addEventListener('mouseleave', () => {
+        bar.style.opacity = '0.85';
+        bar.style.filter = 'none';
+        tooltip.style.display = 'none';
+      });
+    });
   }
 
   function kpi(label, value, delta, dir, onclick = '') {
@@ -818,9 +1138,9 @@ async function updateUserProfile(userId, updates) {
     renderGarage(document.getElementById('view'), fleet());
   };
 
-  window.deployCategoryVehicle = function() {
+  window.deployCategoryVehicle = async function() {
     const cat = document.getElementById('newVehicleCategory').value;
-    const f = fleet();
+    const f = await fleet();
     
     // Find next ID
     const maxIdNum = f.reduce((max, c) => {
@@ -946,7 +1266,7 @@ async function updateUserProfile(userId, updates) {
                   </div>
                   <div style="text-align:right;">
                     <div style="font-size:11px; color:var(--muted); text-transform:uppercase;">Total Revenue</div>
-                    <div style="font-weight:bold; font-size:14px; color:var(--amber);">$${catRev.toLocaleString()}</div>
+                    <div style="font-weight:bold; font-size:14px; color:var(--amber);">₹${catRev.toLocaleString()}</div>
                   </div>
                   <span style="font-size:16px; color:var(--muted); margin-left: 8px;">${isCollapsed ? '▼' : '▲'}</span>
                 </div>
@@ -992,7 +1312,7 @@ async function updateUserProfile(userId, updates) {
     </div>`;
   }
 
-  function renderLive(root, f) {
+  async function renderLive(root, f) {
     const hist = [];
     const hash = location.hash.replace('#', '') || 'live';
     const filter = hash.includes('?') ? new URLSearchParams(hash.split('?')[1]).get('filter') : '';
@@ -1027,46 +1347,54 @@ async function updateUserProfile(userId, updates) {
     `;
 
     const tbody = document.querySelector('#liveTable tbody');
-    const update = () => {
-      const currentFleet = getSearchedFleet(fleet());
-      const currentHash = location.hash.replace('#', '') || 'live';
-      const currentFilter = currentHash.includes('?') ? new URLSearchParams(currentHash.split('?')[1]).get('filter') : '';
+    const update = async () => {
+      try {
+        const currentFleet = getSearchedFleet(await fleet());
+        const currentHash = location.hash.replace('#', '') || 'live';
+        const currentFilter = currentHash.includes('?') ? new URLSearchParams(currentHash.split('?')[1]).get('filter') : '';
 
-      let displayFleet = currentFleet;
-      if (currentFilter === 'overspeed') {
-        displayFleet = currentFleet.filter(c => c.speed > 90);
-      } else if (currentFilter === 'charging') {
-        displayFleet = currentFleet.filter(c => c.charging);
+        let displayFleet = currentFleet || [];
+        if (currentFilter === 'overspeed') {
+          displayFleet = (currentFleet || []).filter(c => c.speed > 90);
+        } else if (currentFilter === 'charging') {
+          displayFleet = (currentFleet || []).filter(c => c.charging);
+        }
+
+        if (tbody && Array.isArray(displayFleet)) {
+          tbody.innerHTML = displayFleet.map(c => {
+            const isOverspeed = c.speed > 90;
+            const speedStyle = isOverspeed ? 'color: var(--red); font-weight: bold; text-shadow: 0 0 8px rgba(255,59,107,0.4);' : '';
+            const speedText = isOverspeed ? `⚠️ ${c.speed}` : c.speed;
+            return `<tr class="${isOverspeed ? 'overspeed-row' : ''}" style="cursor:pointer;" onclick="window.openCarTelemetryModal('${c.id}')">
+              <td><b>${c.brand}</b><br><span style="color:var(--muted);font-size:11px;">${c.id}</span></td>
+              <td>${c.driver}</td>
+              <td style="${speedStyle}"><b>${speedText}</b> km/h</td>
+              <td>${c.battery}%</td>
+              <td>${c.charging ? pill('Charging', 'charging') : c.speed > 90 ? pill('Overspeed', 'danger') : c.speed > 0 ? pill('Online', 'on') : pill('Idle', 'off')}</td>
+              <td>${(28 + Math.random()).toFixed(3)}°N, ${(77 + Math.random()).toFixed(3)}°E</td>
+            </tr>`;
+          }).join('');
+        }
+
+        if (Array.isArray(currentFleet) && currentFleet.length > 0) {
+          const avg = Math.round(currentFleet.reduce((s, c) => s + c.speed, 0) / currentFleet.length);
+          hist.push(avg); if (hist.length > 30) hist.shift();
+          spark(document.getElementById('liveSpark'), hist);
+          
+          const avgSpeedEl = document.getElementById('avgSpeed');
+          if (avgSpeedEl) avgSpeedEl.textContent = avg + ' km/h';
+          
+          const peakSpeedEl = document.getElementById('peakSpeed');
+          if (peakSpeedEl) peakSpeedEl.textContent = Math.max(...currentFleet.map(c => c.speed)) + ' km/h';
+        }
+      } catch (err) {
+        console.error('Live monitoring update error:', err);
       }
-
-      if (tbody) {
-        tbody.innerHTML = displayFleet.map(c => {
-          const isOverspeed = c.speed > 90;
-          const speedStyle = isOverspeed ? 'color: var(--red); font-weight: bold; text-shadow: 0 0 8px rgba(255,59,107,0.4);' : '';
-          const speedText = isOverspeed ? `⚠️ ${c.speed}` : c.speed;
-          return `<tr class="${isOverspeed ? 'overspeed-row' : ''}" style="cursor:pointer;" onclick="window.openCarTelemetryModal('${c.id}')">
-            <td><b>${c.brand}</b><br><span style="color:var(--muted);font-size:11px;">${c.id}</span></td>
-            <td>${c.driver}</td>
-            <td style="${speedStyle}"><b>${speedText}</b> km/h</td>
-            <td>${c.battery}%</td>
-            <td>${c.charging ? pill('Charging', 'charging') : c.speed > 90 ? pill('Overspeed', 'danger') : c.speed > 0 ? pill('Online', 'on') : pill('Idle', 'off')}</td>
-            <td>${(28 + Math.random()).toFixed(3)}°N, ${(77 + Math.random()).toFixed(3)}°E</td>
-          </tr>`;
-        }).join('');
-      }
-
-      const avg = Math.round(currentFleet.reduce((s, c) => s + c.speed, 0) / currentFleet.length);
-      hist.push(avg); if (hist.length > 30) hist.shift();
-      spark(document.getElementById('liveSpark'), hist);
-      
-      const avgSpeedEl = document.getElementById('avgSpeed');
-      if (avgSpeedEl) avgSpeedEl.textContent = avg + ' km/h';
-      
-      const peakSpeedEl = document.getElementById('peakSpeed');
-      if (peakSpeedEl) peakSpeedEl.textContent = Math.max(...currentFleet.map(c => c.speed)) + ' km/h';
     };
 
+    // Initial update
     update();
+    // Live updates
     const t = setInterval(update, 1500);
     window.addEventListener('hashchange', () => clearInterval(t), { once: true });
   }
@@ -1146,7 +1474,7 @@ async function updateUserProfile(userId, updates) {
                   <td><b>${b.brand}</b></td>
                   <td><span class="status-pill off">${b.category}</span></td>
                   <td><b>${b.count}</b> vehicle(s)</td>
-                  <td style="color:var(--cyan); font-weight:600;">$${b.totalExpense.toLocaleString()}</td>
+                  <td style="color:var(--cyan); font-weight:600;">₹${b.totalExpense.toLocaleString()}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -1169,7 +1497,7 @@ async function updateUserProfile(userId, updates) {
                 <tr style="cursor:pointer;" onclick="window.openCarTelemetryModal('${c.id}')">
                   <td><b>${c.id}</b></td>
                   <td>${c.brand}</td>
-                  <td style="color:var(--cyan); font-weight:600;">$${c.expense.toLocaleString()}</td>
+                  <td style="color:var(--cyan); font-weight:600;">₹${c.expense.toLocaleString()}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -1417,7 +1745,7 @@ async function updateUserProfile(userId, updates) {
       <h2 class="page-title">Maintenance Center <small>Predictive alerts &amp; service history</small></h2>
       
       <div class="kpi-grid">
-        ${kpi('Total Service Cost', '$' + totalService.toLocaleString(), `Maint: $${totalMaint.toLocaleString()} | Charging: $${totalCharging.toLocaleString()}`)}
+        ${kpi('Total Service Cost', '₹' + totalService.toLocaleString(), `Maint: ₹${totalMaint.toLocaleString()} | Charging: ₹${totalCharging.toLocaleString()}`)}
         ${kpi('Average Service Cost', '$' + avgService.toLocaleString(), `Per vehicle average`)}
         ${kpi('Total Charging Cost', '$' + totalCharging.toLocaleString(), `Energy cost (18% of revenue)`)}
         ${kpi('Fleet Condition Avg', (f.length > 0 ? Math.round(f.reduce((s, c) => s + c.condition, 0) / f.length) : 0) + '%', '')}
@@ -1936,9 +2264,13 @@ async function updateUserProfile(userId, updates) {
   }
 
   // ---------- DRIVER ----------
-  function initDriver() {
+  async function initDriver() {
     if (!currentUser) return;
     setProfile(currentUser);
+    
+    // Load dataset first
+    await fleet();
+    
     const view = location.hash.replace('#', '') || 'home';
     setActiveNav(view);
     renderDriverView(view, currentUser);
@@ -1948,9 +2280,10 @@ async function updateUserProfile(userId, updates) {
     });
   }
 
-  function renderDriverView(view, u) {
+  async function renderDriverView(view, u) {
     const root = document.getElementById('view');
-    const car = fleet().find(c => c.driver === u.name) || fleet()[0];
+    const f = await fleet();
+    const car = f.find(c => c.driver === u.name) || f[0];
     if (view === 'home') return driverHome(root, car, u);
     if (view === 'vehicle') return driverVehicle(root, car);
     if (view === 'trip') return driverTrip(root, car);

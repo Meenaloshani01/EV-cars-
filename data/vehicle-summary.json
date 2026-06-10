@@ -1,0 +1,461 @@
+{
+  "total_active_vehicles": 50,
+  "summary_stats": {
+    "avg_trips_per_vehicle": 100,
+    "max_trips": 126,
+    "min_trips": 73,
+    "total_trips": 5000
+  },
+  "vehicle_details": [
+    {
+      "vehicle_id": "VEH036",
+      "car_type": "Volvo EX40",
+      "admin_id": "ADM04",
+      "trip_count": 126,
+      "total_distance_km": 8103.580000000001,
+      "total_income": 133624.69000000003,
+      "avg_battery_health": "99.70"
+    },
+    {
+      "vehicle_id": "VEH017",
+      "car_type": "MG ZS EV",
+      "admin_id": "ADM02",
+      "trip_count": 121,
+      "total_distance_km": 6448.539999999997,
+      "total_income": 101799.33,
+      "avg_battery_health": "96.40"
+    },
+    {
+      "vehicle_id": "VEH022",
+      "car_type": "Tata Punch EV",
+      "admin_id": "ADM03",
+      "trip_count": 120,
+      "total_distance_km": 7406.89,
+      "total_income": 114088.56000000004,
+      "avg_battery_health": "99.80"
+    },
+    {
+      "vehicle_id": "VEH046",
+      "car_type": "Tata Punch EV",
+      "admin_id": "ADM05",
+      "trip_count": 119,
+      "total_distance_km": 5749.900000000001,
+      "total_income": 89789.60999999999,
+      "avg_battery_health": "96.80"
+    },
+    {
+      "vehicle_id": "VEH016",
+      "car_type": "Tata Punch EV",
+      "admin_id": "ADM02",
+      "trip_count": 119,
+      "total_distance_km": 7030.769999999997,
+      "total_income": 111911.33,
+      "avg_battery_health": "89.90"
+    },
+    {
+      "vehicle_id": "VEH042",
+      "car_type": "Volvo EX40",
+      "admin_id": "ADM05",
+      "trip_count": 116,
+      "total_distance_km": 7363.88,
+      "total_income": 115730.49999999997,
+      "avg_battery_health": "89.60"
+    },
+    {
+      "vehicle_id": "VEH007",
+      "car_type": "Tata Punch EV",
+      "admin_id": "ADM01",
+      "trip_count": 115,
+      "total_distance_km": 6735.059999999998,
+      "total_income": 109715.69,
+      "avg_battery_health": "98.20"
+    },
+    {
+      "vehicle_id": "VEH021",
+      "car_type": "Volvo EX40",
+      "admin_id": "ADM03",
+      "trip_count": 113,
+      "total_distance_km": 7869.2300000000005,
+      "total_income": 124878.07000000002,
+      "avg_battery_health": "93.20"
+    },
+    {
+      "vehicle_id": "VEH037",
+      "car_type": "Tata Punch EV",
+      "admin_id": "ADM04",
+      "trip_count": 112,
+      "total_distance_km": 6352.739999999997,
+      "total_income": 103940.29999999999,
+      "avg_battery_health": "91.80"
+    },
+    {
+      "vehicle_id": "VEH010",
+      "car_type": "Tata Punch EV",
+      "admin_id": "ADM01",
+      "trip_count": 112,
+      "total_distance_km": 7263.779999999997,
+      "total_income": 118138.62999999999,
+      "avg_battery_health": "89.40"
+    },
+    {
+      "vehicle_id": "VEH011",
+      "car_type": "MG ZS EV",
+      "admin_id": "ADM02",
+      "trip_count": 111,
+      "total_distance_km": 7445.840000000001,
+      "total_income": 117578.24999999999,
+      "avg_battery_health": "95.90"
+    },
+    {
+      "vehicle_id": "VEH030",
+      "car_type": "Volvo EX40",
+      "admin_id": "ADM03",
+      "trip_count": 110,
+      "total_distance_km": 8187.299999999998,
+      "total_income": 132939.53999999998,
+      "avg_battery_health": "90.70"
+    },
+    {
+      "vehicle_id": "VEH049",
+      "car_type": "Tata Punch EV",
+      "admin_id": "ADM05",
+      "trip_count": 107,
+      "total_distance_km": 6877.080000000001,
+      "total_income": 112134.06000000001,
+      "avg_battery_health": "99.60"
+    },
+    {
+      "vehicle_id": "VEH024",
+      "car_type": "Volvo EX40",
+      "admin_id": "ADM03",
+      "trip_count": 107,
+      "total_distance_km": 5888.620000000001,
+      "total_income": 94220.13999999998,
+      "avg_battery_health": "98.90"
+    },
+    {
+      "vehicle_id": "VEH048",
+      "car_type": "Volvo EX40",
+      "admin_id": "ADM05",
+      "trip_count": 107,
+      "total_distance_km": 6823.81,
+      "total_income": 104033.50000000007,
+      "avg_battery_health": "96.50"
+    },
+    {
+      "vehicle_id": "VEH028",
+      "car_type": "Tata Punch EV",
+      "admin_id": "ADM03",
+      "trip_count": 105,
+      "total_distance_km": 6737.490000000003,
+      "total_income": 114708.99999999996,
+      "avg_battery_health": "95.90"
+    },
+    {
+      "vehicle_id": "VEH027",
+      "car_type": "Volvo EX40",
+      "admin_id": "ADM03",
+      "trip_count": 105,
+      "total_distance_km": 7531.109999999999,
+      "total_income": 124690.92,
+      "avg_battery_health": "96.00"
+    },
+    {
+      "vehicle_id": "VEH035",
+      "car_type": "MG ZS EV",
+      "admin_id": "ADM04",
+      "trip_count": 105,
+      "total_distance_km": 6839.819999999997,
+      "total_income": 104959.97000000003,
+      "avg_battery_health": "95.80"
+    },
+    {
+      "vehicle_id": "VEH003",
+      "car_type": "Volvo EX40",
+      "admin_id": "ADM01",
+      "trip_count": 104,
+      "total_distance_km": 6819.260000000003,
+      "total_income": 115393.05,
+      "avg_battery_health": "96.50"
+    },
+    {
+      "vehicle_id": "VEH009",
+      "car_type": "Volvo EX40",
+      "admin_id": "ADM01",
+      "trip_count": 104,
+      "total_distance_km": 8155.439999999997,
+      "total_income": 117705.36,
+      "avg_battery_health": "91.00"
+    },
+    {
+      "vehicle_id": "VEH044",
+      "car_type": "MG ZS EV",
+      "admin_id": "ADM05",
+      "trip_count": 101,
+      "total_distance_km": 7061.970000000002,
+      "total_income": 108374.37000000004,
+      "avg_battery_health": "97.30"
+    },
+    {
+      "vehicle_id": "VEH029",
+      "car_type": "MG ZS EV",
+      "admin_id": "ADM03",
+      "trip_count": 101,
+      "total_distance_km": 7230.140000000003,
+      "total_income": 112635.37000000001,
+      "avg_battery_health": "88.70"
+    },
+    {
+      "vehicle_id": "VEH038",
+      "car_type": "MG ZS EV",
+      "admin_id": "ADM04",
+      "trip_count": 100,
+      "total_distance_km": 6034.639999999999,
+      "total_income": 91543.04,
+      "avg_battery_health": "92.70"
+    },
+    {
+      "vehicle_id": "VEH045",
+      "car_type": "Volvo EX40",
+      "admin_id": "ADM05",
+      "trip_count": 99,
+      "total_distance_km": 6540.9,
+      "total_income": 101891.37999999998,
+      "avg_battery_health": "98.40"
+    },
+    {
+      "vehicle_id": "VEH031",
+      "car_type": "Tata Punch EV",
+      "admin_id": "ADM04",
+      "trip_count": 98,
+      "total_distance_km": 6034.159999999999,
+      "total_income": 100504.58999999994,
+      "avg_battery_health": "89.90"
+    },
+    {
+      "vehicle_id": "VEH023",
+      "car_type": "MG ZS EV",
+      "admin_id": "ADM03",
+      "trip_count": 97,
+      "total_distance_km": 6152.370000000003,
+      "total_income": 100090.10000000002,
+      "avg_battery_health": "99.40"
+    },
+    {
+      "vehicle_id": "VEH040",
+      "car_type": "Tata Punch EV",
+      "admin_id": "ADM04",
+      "trip_count": 96,
+      "total_distance_km": 5948.819999999999,
+      "total_income": 96647.22000000002,
+      "avg_battery_health": "96.80"
+    },
+    {
+      "vehicle_id": "VEH008",
+      "car_type": "MG ZS EV",
+      "admin_id": "ADM01",
+      "trip_count": 96,
+      "total_distance_km": 6553.520000000001,
+      "total_income": 103806.80999999997,
+      "avg_battery_health": "96.10"
+    },
+    {
+      "vehicle_id": "VEH018",
+      "car_type": "Volvo EX40",
+      "admin_id": "ADM02",
+      "trip_count": 95,
+      "total_distance_km": 5477.26,
+      "total_income": 87742.98999999999,
+      "avg_battery_health": "98.40"
+    },
+    {
+      "vehicle_id": "VEH043",
+      "car_type": "Tata Punch EV",
+      "admin_id": "ADM05",
+      "trip_count": 94,
+      "total_distance_km": 4482.860000000001,
+      "total_income": 71326.56,
+      "avg_battery_health": "94.00"
+    },
+    {
+      "vehicle_id": "VEH039",
+      "car_type": "Volvo EX40",
+      "admin_id": "ADM04",
+      "trip_count": 94,
+      "total_distance_km": 5501.500000000003,
+      "total_income": 84852.38000000003,
+      "avg_battery_health": "92.80"
+    },
+    {
+      "vehicle_id": "VEH034",
+      "car_type": "Tata Punch EV",
+      "admin_id": "ADM04",
+      "trip_count": 94,
+      "total_distance_km": 5852.22,
+      "total_income": 88306.58000000003,
+      "avg_battery_health": "89.40"
+    },
+    {
+      "vehicle_id": "VEH020",
+      "car_type": "MG ZS EV",
+      "admin_id": "ADM02",
+      "trip_count": 93,
+      "total_distance_km": 5245.209999999998,
+      "total_income": 85334.86000000002,
+      "avg_battery_health": "93.80"
+    },
+    {
+      "vehicle_id": "VEH012",
+      "car_type": "Volvo EX40",
+      "admin_id": "ADM02",
+      "trip_count": 93,
+      "total_distance_km": 6175.580000000001,
+      "total_income": 102136.40000000001,
+      "avg_battery_health": "96.30"
+    },
+    {
+      "vehicle_id": "VEH047",
+      "car_type": "MG ZS EV",
+      "admin_id": "ADM05",
+      "trip_count": 93,
+      "total_distance_km": 6984.320000000001,
+      "total_income": 117544.83,
+      "avg_battery_health": "98.40"
+    },
+    {
+      "vehicle_id": "VEH041",
+      "car_type": "MG ZS EV",
+      "admin_id": "ADM05",
+      "trip_count": 93,
+      "total_distance_km": 5246.6900000000005,
+      "total_income": 80627.95000000001,
+      "avg_battery_health": "88.10"
+    },
+    {
+      "vehicle_id": "VEH006",
+      "car_type": "Volvo EX40",
+      "admin_id": "ADM01",
+      "trip_count": 93,
+      "total_distance_km": 5606.519999999998,
+      "total_income": 88518.73000000005,
+      "avg_battery_health": "90.60"
+    },
+    {
+      "vehicle_id": "VEH026",
+      "car_type": "MG ZS EV",
+      "admin_id": "ADM03",
+      "trip_count": 93,
+      "total_distance_km": 5926.6500000000015,
+      "total_income": 99154.08999999998,
+      "avg_battery_health": "92.50"
+    },
+    {
+      "vehicle_id": "VEH014",
+      "car_type": "MG ZS EV",
+      "admin_id": "ADM02",
+      "trip_count": 93,
+      "total_distance_km": 5467.21,
+      "total_income": 89036.24999999999,
+      "avg_battery_health": "96.00"
+    },
+    {
+      "vehicle_id": "VEH005",
+      "car_type": "MG ZS EV",
+      "admin_id": "ADM01",
+      "trip_count": 92,
+      "total_distance_km": 6391.46,
+      "total_income": 101262.42,
+      "avg_battery_health": "91.10"
+    },
+    {
+      "vehicle_id": "VEH033",
+      "car_type": "Volvo EX40",
+      "admin_id": "ADM04",
+      "trip_count": 91,
+      "total_distance_km": 5925.250000000001,
+      "total_income": 98306.83,
+      "avg_battery_health": "89.30"
+    },
+    {
+      "vehicle_id": "VEH050",
+      "car_type": "MG ZS EV",
+      "admin_id": "ADM05",
+      "trip_count": 91,
+      "total_distance_km": 5699.21,
+      "total_income": 91124.33999999997,
+      "avg_battery_health": "96.90"
+    },
+    {
+      "vehicle_id": "VEH032",
+      "car_type": "MG ZS EV",
+      "admin_id": "ADM04",
+      "trip_count": 90,
+      "total_distance_km": 5461.590000000001,
+      "total_income": 85419.25999999998,
+      "avg_battery_health": "97.80"
+    },
+    {
+      "vehicle_id": "VEH019",
+      "car_type": "Tata Punch EV",
+      "admin_id": "ADM02",
+      "trip_count": 90,
+      "total_distance_km": 5198.590000000001,
+      "total_income": 84858.95999999999,
+      "avg_battery_health": "94.50"
+    },
+    {
+      "vehicle_id": "VEH004",
+      "car_type": "Tata Punch EV",
+      "admin_id": "ADM01",
+      "trip_count": 89,
+      "total_distance_km": 5975.599999999999,
+      "total_income": 94622.07999999999,
+      "avg_battery_health": "88.10"
+    },
+    {
+      "vehicle_id": "VEH015",
+      "car_type": "Volvo EX40",
+      "admin_id": "ADM02",
+      "trip_count": 86,
+      "total_distance_km": 4569.789999999999,
+      "total_income": 75053.9,
+      "avg_battery_health": "94.70"
+    },
+    {
+      "vehicle_id": "VEH001",
+      "car_type": "Tata Punch EV",
+      "admin_id": "ADM01",
+      "trip_count": 83,
+      "total_distance_km": 4537.550000000001,
+      "total_income": 71399.5,
+      "avg_battery_health": "91.30"
+    },
+    {
+      "vehicle_id": "VEH013",
+      "car_type": "Tata Punch EV",
+      "admin_id": "ADM02",
+      "trip_count": 81,
+      "total_distance_km": 5267.719999999998,
+      "total_income": 84273.22,
+      "avg_battery_health": "90.20"
+    },
+    {
+      "vehicle_id": "VEH025",
+      "car_type": "Tata Punch EV",
+      "admin_id": "ADM03",
+      "trip_count": 80,
+      "total_distance_km": 4997.51,
+      "total_income": 81234.48000000001,
+      "avg_battery_health": "96.90"
+    },
+    {
+      "vehicle_id": "VEH002",
+      "car_type": "MG ZS EV",
+      "admin_id": "ADM01",
+      "trip_count": 73,
+      "total_distance_km": 4271.2300000000005,
+      "total_income": 69839.37000000001,
+      "avg_battery_health": "99.70"
+    }
+  ]
+}
