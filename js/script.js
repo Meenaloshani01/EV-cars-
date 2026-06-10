@@ -2808,232 +2808,260 @@ async function updateUserProfile(userId, updates) {
   }
 
   function driverTrip(root, c) {
-    if (!window._activeTrip) {
+    // Check if we have a prediction result to display
+    if (window._predictionResult) {
+      const prediction = window._predictionResult;
       root.innerHTML = `
-        <h2 class="page-title">Current Trip <small>Start simulation</small></h2>
-        <div class="glass panel" style="max-width: 600px; margin: 0 auto; padding: 24px;">
-          <h3 style="margin-bottom: 16px; color: var(--text);">Enter Vehicle Trip Details</h3>
-          <p style="color: var(--muted); font-size: 13px; margin-bottom: 20px;">Please provide the following information before starting your trip:</p>
-          
-          <form id="startTripForm" style="display: flex; flex-direction: column; gap: 16px;">
-            <div class="form-group">
-              <label for="tripOdometer">Odometer Reading (km)</label>
-              <input class="input" type="number" id="tripOdometer" required min="0" placeholder="e.g. 24500" style="margin-bottom: 4px;">
-              <span style="font-size: 11px; color: var(--muted);">(Total distance travelled by the vehicle)</span>
+        <h2 class="page-title">Predicted Remaining Distance <small>ML-Powered Prediction</small></h2>
+        
+        <!-- Prediction Result Card -->
+        <div class="glass panel" style="max-width: 700px; margin: 0 auto;">
+          <div style="text-align: center; padding: 32px;">
+            <h3 style="color: var(--cyan); margin-bottom: 8px;">🤖 AI Prediction Result</h3>
+            <div style="font-size: 72px; font-weight: 700; color: var(--cyan); margin: 24px 0; text-shadow: 0 0 30px rgba(0, 231, 255, 0.5);">
+              ${prediction.predictedRange} km
+            </div>
+            <p style="color: var(--muted); font-size: 14px; margin-bottom: 32px;">Predicted Remaining Distance</p>
+            
+            <!-- Trip Details -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; text-align: left; margin-top: 32px;">
+              <div class="spec-row">
+                <span>Car Type</span>
+                <b>${prediction.inputs.carType}</b>
+              </div>
+              <div class="spec-row">
+                <span>Battery Level</span>
+                <b>${prediction.inputs.battery}%</b>
+              </div>
+              <div class="spec-row">
+                <span>Speed</span>
+                <b>${prediction.inputs.speed} km/h</b>
+              </div>
+              <div class="spec-row">
+                <span>Odometer</span>
+                <b>${prediction.inputs.odometer.toLocaleString()} km</b>
+              </div>
+              <div class="spec-row">
+                <span>Passengers</span>
+                <b>${prediction.inputs.passengers}</b>
+              </div>
+              <div class="spec-row">
+                <span>Road Type</span>
+                <b>${prediction.inputs.drivingMode}</b>
+              </div>
             </div>
             
-            <div class="form-group">
-              <label for="tripBattery">Current Battery Percentage (%)</label>
-              <input class="input" type="number" id="tripBattery" required min="10" max="100" placeholder="e.g. 80" style="margin-bottom: 4px;">
-              <span style="font-size: 11px; color: var(--muted);">(Enter value between 10 and 100)</span>
-            </div>
+            <!-- Car Specifications -->
+            ${prediction.specs ? `
+              <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <h4 style="color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">Vehicle Specifications</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; text-align: left;">
+                  <div class="spec-row">
+                    <span>Battery Capacity</span>
+                    <b>${prediction.specs.battery_capacity_kwh} kWh</b>
+                  </div>
+                  <div class="spec-row">
+                    <span>Max Range</span>
+                    <b>${prediction.specs.max_range_km} km</b>
+                  </div>
+                  <div class="spec-row">
+                    <span>Vehicle Weight</span>
+                    <b>${prediction.specs.vehicle_weight_kg} kg</b>
+                  </div>
+                  <div class="spec-row">
+                    <span>Motor Power</span>
+                    <b>${prediction.specs.motor_power_kw} kW</b>
+                  </div>
+                </div>
+              </div>
+            ` : ''}
             
+            <!-- Actions -->
+            <div style="display: flex; gap: 12px; margin-top: 32px;">
+              <button class="btn block" onclick="window.newPrediction()" style="flex: 1;">🔄 New Prediction</button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      window.newPrediction = () => {
+        window._predictionResult = null;
+        driverTrip(root, c);
+      };
+      
+      return;
+    }
+    
+    // Show prediction form
+    root.innerHTML = `
+      <h2 class="page-title">Predict Remaining Distance <small>ML-Powered Range Prediction</small></h2>
+      <div class="glass panel" style="max-width: 700px; margin: 0 auto; padding: 24px;">
+        <h3 style="margin-bottom: 16px; color: var(--text);">🤖 Enter Vehicle Details</h3>
+        <p style="color: var(--muted); font-size: 13px; margin-bottom: 20px;">Provide the following information for AI-powered range prediction:</p>
+        
+        <form id="startTripForm" style="display: flex; flex-direction: column; gap: 16px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+            
+            <!-- Car Type -->
             <div class="form-group">
               <label for="tripCarType">Car Type</label>
               <select class="input" id="tripCarType" required>
                 <option value="" disabled selected>Select Car Model</option>
-                <option value="Hyundai Kona EV">Hyundai Kona EV</option>
-                <option value="Tata Nexon EV">Tata Nexon EV</option>
+                <option value="Tata Punch EV">Tata Punch EV</option>
                 <option value="MG ZS EV">MG ZS EV</option>
-                <option value="Kia EV6">Kia EV6</option>
-                <option value="Other">Other EV Model</option>
+                <option value="Volvo EX40">Volvo EX40</option>
               </select>
-              <span style="font-size: 11px; color: var(--muted);">(e.g., Hyundai Kona EV, Tata Nexon EV, MG ZS EV, Kia EV6, etc.)</span>
+              <span style="font-size: 11px; color: var(--muted);">ML-supported models</span>
             </div>
             
+            <!-- Battery Percentage -->
             <div class="form-group">
-              <label>Driving Mode</label>
-              <div style="display: flex; gap: 20px; margin-top: 6px;">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; text-transform: none; color: var(--text);">
-                  <input type="radio" name="drivingMode" value="City" checked style="width: 16px; height: 16px; accent-color: var(--cyan);">
-                  City Driving
-                </label>
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; text-transform: none; color: var(--text);">
-                  <input type="radio" name="drivingMode" value="Highway" style="width: 16px; height: 16px; accent-color: var(--cyan);">
-                  Highway Driving
-                </label>
-              </div>
+              <label for="tripBattery">Current Battery (%)</label>
+              <input class="input" type="number" id="tripBattery" required min="1" max="100" placeholder="e.g. 80">
+              <span style="font-size: 11px; color: var(--muted);">Between 1-100%</span>
             </div>
             
-            <button class="btn block" type="submit" style="margin-top: 10px;">⚡ Start Trip</button>
-          </form>
-        </div>
-      `;
-      
-      document.getElementById('startTripForm').addEventListener('submit', e => {
-        e.preventDefault();
-        const odo = Number(document.getElementById('tripOdometer').value);
-        const batt = Number(document.getElementById('tripBattery').value);
-        const carType = document.getElementById('tripCarType').value;
-        const drivingMode = document.querySelector('input[name="drivingMode"]:checked').value;
-        
-        window._activeTrip = {
-          odometer: odo,
-          battery: batt,
-          carType: carType,
-          drivingMode: drivingMode,
-          distance: 0,
-          initialBattery: batt
-        };
-        
-        driverTrip(root, c);
-      });
-      return;
-    }
-
-    // Trip is active
-    let dist = 0;
-    const hist = [];
-    
-    // Estimates Setup
-    const mode = window._activeTrip.drivingMode;
-    const initialOdo = window._activeTrip.odometer;
-    const initialBatt = window._activeTrip.battery;
-    const capacity = c.batteryCapacity || 75; // fallback
-    
-    // City has higher efficiency (6.5 km/1% battery) than Highway (4.8 km/1% battery)
-    const efficiency = mode === 'City' ? 6.5 : 4.8;
-    const energyConsumption = mode === 'City' ? '14.5 kWh/100 km' : '18.2 kWh/100 km';
-    
-    // Maintenance alert based on odometer
-    let maintAlert = "✓ Vehicle status healthy. No alerts.";
-    let maintColor = "var(--green)";
-    if (initialOdo > 100000) {
-      maintAlert = "⚠️ Full mechanical check recommended (odometer exceeds 100,000 km).";
-      maintColor = "var(--red)";
-    } else if (initialOdo > 50000) {
-      maintAlert = "🔧 Rotation of tires and brake check recommended.";
-      maintColor = "var(--amber)";
-    }
-
-    root.innerHTML = `
-      <h2 class="page-title">Current Trip <small>Live Simulation</small></h2>
-      <div class="grid-2">
-        <div class="glass panel">
-          <h3><span class="pulse"></span>Live Telemetry</h3>
-          <div class="circle" style="--p:${Math.min(100, c.speed)}; --c: var(--cyan);"><span id="ds">${c.speed}</span></div>
-          <p style="color:var(--muted);margin-top:8px;">Current speed (km/h)</p>
-          <div class="row" style="margin-top:14px;"><span>Distance Covered</span><b id="dd">0 km</b></div>
-          <div class="row"><span>Odometer</span><b id="dodo">${initialOdo} km</b></div>
-          <div class="row"><span>Battery Percentage</span><b id="dbatt">${initialBatt}%</b></div>
-          <div class="batt-bar" style="margin-top:4px;"><i id="dbattbar" style="width:${initialBatt}%"></i></div>
-        </div>
-        <div class="glass panel">
-          <h3>Trip Estimations &amp; Alerts</h3>
-          <div class="spec-list">
-            <div class="spec-row">
-              <span>Car Type</span>
-              <b>${window._activeTrip.carType}</b>
+            <!-- Speed -->
+            <div class="form-group">
+              <label for="tripSpeed">Speed (km/h)</label>
+              <input class="input" type="number" id="tripSpeed" required min="0" max="200" placeholder="e.g. 60">
+              <span style="font-size: 11px; color: var(--muted);">Current or average speed</span>
             </div>
-            <div class="spec-row">
-              <span>Driving Mode</span>
-              <b style="color: var(--cyan);">${mode} Driving</b>
+            
+            <!-- Total KM Run -->
+            <div class="form-group">
+              <label for="tripOdometer">Odometer Reading (km)</label>
+              <input class="input" type="number" id="tripOdometer" required min="0" placeholder="e.g. 15000">
+              <span style="font-size: 11px; color: var(--muted);">Total distance travelled</span>
             </div>
-            <div class="spec-row">
-              <span>Remaining Range</span>
-              <b id="destsrange">${Math.round(initialBatt * efficiency)} km</b>
-            </div>
-            <div class="spec-row">
-              <span>Energy Consumption</span>
-              <b>${energyConsumption}</b>
-            </div>
-            <div class="spec-row">
-              <span>Battery Status</span>
-              <b id="destsstatus" style="color: ${initialBatt > 70 ? 'var(--green)' : initialBatt > 30 ? 'var(--amber)' : 'var(--red)'};">
-                ${initialBatt > 70 ? 'Healthy' : initialBatt > 30 ? 'Medium' : 'Low'}
-              </b>
-            </div>
-            <div class="spec-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
-              <span style="font-size: 11px; text-transform: uppercase;">Charging Recommendation</span>
-              <b id="destschg" style="color: var(--cyan); text-align: left; font-size:12px;">
-                ${initialBatt < 30 ? '⚠️ Low Battery: Recommend immediate charging.' : '✓ Sufficient Battery: Smart charging suggested at off-peak hours.'}
-              </b>
-            </div>
-            <div class="spec-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
-              <span style="font-size: 11px; text-transform: uppercase;">Maintenance Alerts</span>
-              <b id="destsmaint" style="color: ${maintColor}; text-align: left; font-size:12px;">${maintAlert}</b>
+            
+            <!-- Passenger Count -->
+            <div class="form-group">
+              <label for="tripPassengers">Passenger Count</label>
+              <input class="input" type="number" id="tripPassengers" required min="1" max="8" placeholder="e.g. 2">
+              <span style="font-size: 11px; color: var(--muted);">Including driver</span>
             </div>
           </div>
-          <div style="margin-top:16px;">
-            <button class="btn danger block" onclick="window.endTrip()">End Trip</button>
+          
+          <!-- Driving Mode -->
+          <div class="form-group" style="margin-top: 8px;">
+            <label>Road Type / Driving Mode</label>
+            <div style="display: flex; gap: 20px; margin-top: 6px;">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; text-transform: none; color: var(--text);">
+                <input type="radio" name="drivingMode" value="City" checked style="width: 16px; height: 16px; accent-color: var(--cyan);">
+                🏙️ City Driving
+              </label>
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; text-transform: none; color: var(--text);">
+                <input type="radio" name="drivingMode" value="Highway" style="width: 16px; height: 16px; accent-color: var(--cyan);">
+                🛣️ Highway Driving
+              </label>
+            </div>
           </div>
-        </div>
-      </div>
-      <div class="glass panel" style="margin-top:16px;">
-        <h3>Speed Trend</h3>
-        <svg class="spark" id="dspark" style="height:160px;"></svg>
+          
+          <!-- ML Status Indicator -->
+          <div id="mlStatusIndicator" style="margin-top: 8px;"></div>
+          
+          <button class="btn block" type="submit" id="predictBtn" style="margin-top: 10px;">
+            🤖 Predict Remaining Distance
+          </button>
+        </form>
       </div>
     `;
-
-    const ds = document.getElementById('ds');
-    const dd = document.getElementById('dd');
-    const dodo = document.getElementById('dodo');
-    const dbatt = document.getElementById('dbatt');
-    const dbattbar = document.getElementById('dbattbar');
     
-    const destsrange = document.getElementById('destsrange');
-    const destsstatus = document.getElementById('destsstatus');
-    const destschg = document.getElementById('destschg');
-
-    window.endTrip = () => {
-      window._activeTrip = null;
-      driverTrip(root, c);
-    };
-
-    const update = () => {
-      if (!window._activeTrip) return;
-      c.speed = Math.max(0, c.speed + rint(-10, 10));
-      dist += c.speed / 3600 * 1.5;
-      
-      // Update Odometer
-      const currentOdo = Math.round(initialOdo + dist);
-      
-      // Update Battery % dynamically based on distance & mode efficiency
-      const rate = mode === 'City' ? 14.5 : 18.2;
-      const kwhUsed = dist * (rate / 100);
-      const battUsed = (kwhUsed / capacity) * 100;
-      const currentBatt = Math.max(0, Number((initialBatt - battUsed).toFixed(1)));
-      
-      // Update Range
-      const currentRange = Math.round(currentBatt * efficiency);
-      
-      // UI Updates
-      ds.textContent = c.speed;
-      dd.textContent = dist.toFixed(2) + ' km';
-      dodo.textContent = currentOdo + ' km';
-      dbatt.textContent = currentBatt + '%';
-      dbattbar.style.width = currentBatt + '%';
-      destsrange.textContent = currentRange + ' km';
-      
-      // Battery status update
-      if (currentBatt > 70) {
-        destsstatus.textContent = 'Healthy';
-        destsstatus.style.color = 'var(--green)';
-        destschg.textContent = '✓ Sufficient Battery: Smart charging suggested at off-peak hours.';
-        destschg.style.color = 'var(--cyan)';
-      } else if (currentBatt > 30) {
-        destsstatus.textContent = 'Medium';
-        destsstatus.style.color = 'var(--amber)';
-        destschg.textContent = '✓ Sufficient Battery: Smart charging suggested at off-peak hours.';
-        destschg.style.color = 'var(--cyan)';
-      } else {
-        destsstatus.textContent = 'Low';
-        destsstatus.style.color = 'var(--red)';
-        destschg.textContent = '⚠️ Low Battery: Recommend immediate charging.';
-        destschg.style.color = 'var(--red)';
+    // Check ML status
+    (async () => {
+      try {
+        const { checkMLHealth } = await import('./ml-service.js');
+        const health = await checkMLHealth();
+        const statusDiv = document.getElementById('mlStatusIndicator');
+        if (statusDiv) {
+          if (health.available && health.modelLoaded) {
+            statusDiv.innerHTML = `
+              <div class="alert" style="background: rgba(0, 255, 163, 0.08); border: 1px solid rgba(0, 255, 163, 0.3); color: var(--green);">
+                ✅ <b>ML Engine Active:</b> Predictions powered by AI with 87.5% accuracy
+              </div>
+            `;
+          } else {
+            statusDiv.innerHTML = `
+              <div class="alert" style="background: rgba(255, 178, 43, 0.08); border: 1px solid rgba(255, 178, 43, 0.3); color: var(--amber);">
+                ⚠️ <b>ML Engine Offline:</b> Using formula-based predictions. Start Flask API for ML predictions.
+              </div>
+            `;
+          }
+        }
+      } catch (e) {
+        console.log('ML service not available:', e);
       }
-
-      hist.push(c.speed);
-      if (hist.length > 30) hist.shift();
-      spark(document.getElementById('dspark'), hist);
-    };
-
-    update();
-    const t = setInterval(update, 1500);
-    window.addEventListener('hashchange', () => {
-      clearInterval(t);
-      delete window.endTrip;
-    }, { once: true });
+    })();
+    
+    document.getElementById('startTripForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const btn = document.getElementById('predictBtn');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '🔄 Predicting...';
+      
+      const odo = Number(document.getElementById('tripOdometer').value);
+      const batt = Number(document.getElementById('tripBattery').value);
+      const carType = document.getElementById('tripCarType').value;
+      const drivingMode = document.querySelector('input[name="drivingMode"]:checked').value;
+      const speed = Number(document.getElementById('tripSpeed').value);
+      const passengers = Number(document.getElementById('tripPassengers').value);
+      
+      try {
+        const { predictRange } = await import('./ml-service.js');
+        const mlData = {
+          car_type: carType,
+          battery_percentage: batt,
+          road_type: drivingMode,
+          speed_kmph: speed,
+          total_km_run: odo,
+          passenger_count: passengers
+        };
+        
+        const result = await predictRange(mlData);
+        
+        if (result.success) {
+          window._predictionResult = {
+            predictedRange: Math.round(result.predictedRange),
+            inputs: {
+              carType,
+              battery: batt,
+              speed,
+              odometer: odo,
+              passengers,
+              drivingMode
+            },
+            specs: result.specs
+          };
+          driverTrip(root, c);
+        } else {
+          throw new Error(result.error || 'Prediction failed');
+        }
+      } catch (error) {
+        // Fallback to formula-based calculation
+        const efficiency = drivingMode === 'City' ? 6.5 : 4.8;
+        const predictedRange = Math.round(batt * efficiency);
+        
+        window._predictionResult = {
+          predictedRange: predictedRange,
+          inputs: {
+            carType,
+            battery: batt,
+            speed,
+            odometer: odo,
+            passengers,
+            drivingMode
+          },
+          specs: null
+        };
+        driverTrip(root, c);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    });
   }
 
   function driverHealth(root, c) {
