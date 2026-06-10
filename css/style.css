@@ -311,3 +311,239 @@ tbody tr:hover { background: rgba(120,140,255,0.05); }
 .revenue-table th, .revenue-table td {
   padding: 10px;
 }
+
+/* VoltEdge Premium List Redesign Classes */
+
+/* Car List & Items */
+.car-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.car-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  gap: 20px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.car-list-item:hover {
+  transform: translateX(4px);
+  box-shadow: 0 0 16px rgba(0, 231, 255, 0.15);
+}
+.car-list-item .col-main {
+  flex: 2;
+  min-width: 140px;
+}
+.car-list-item .col-main .brand {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+.car-list-item .col-main .vid {
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 4px;
+}
+.car-list-item .col-status {
+  flex: 1;
+  min-width: 100px;
+  display: flex;
+  justify-content: flex-start;
+}
+.car-list-item .col-battery {
+  flex: 2;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.car-list-item .col-battery .row {
+  margin: 0;
+  font-size: 12px;
+}
+.car-list-item .col-stats {
+  flex: 2;
+  min-width: 130px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.car-list-item .col-stats div {
+  display: flex;
+  justify-content: space-between;
+}
+.car-list-item .col-stats span {
+  color: var(--muted);
+}
+.car-list-item .col-motor {
+  flex: 1.5;
+  min-width: 110px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.car-list-item .col-motor b {
+  color: var(--text);
+  margin-left: 4px;
+}
+.car-list-item .col-actions {
+  flex: 2.5;
+  min-width: 220px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.car-list-item .col-actions .btn {
+  padding: 6px 12px;
+  font-size: 11px;
+}
+
+/* Driver List & Items */
+.driver-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.driver-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  gap: 20px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.driver-list-item:hover {
+  transform: translateX(4px);
+  box-shadow: 0 0 16px rgba(177, 92, 255, 0.15);
+}
+.driver-list-item .col-driver {
+  flex: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 150px;
+}
+.driver-list-item .col-driver .avatar {
+  flex-shrink: 0;
+}
+.driver-list-item .col-score {
+  flex: 2;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.driver-list-item .col-score .row-simple {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+}
+.driver-list-item .col-score .row-simple b {
+  color: var(--text);
+}
+.driver-list-item .col-violations {
+  flex: 2.5;
+  min-width: 150px;
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.driver-list-item .col-violations b {
+  color: var(--text);
+}
+.driver-list-item .col-details {
+  flex: 2;
+  min-width: 140px;
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.driver-list-item .col-details b {
+  color: var(--text);
+}
+
+/* Specifications Vertical List */
+.spec-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+.spec-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(120, 140, 255, 0.08);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  transition: background 0.2s;
+}
+.spec-row:hover {
+  background: rgba(120, 140, 255, 0.05);
+}
+.spec-row b {
+  color: var(--text);
+}
+
+/* KPI Listed Items */
+.kpi-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.kpi-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  transition: transform 0.2s;
+}
+.kpi-list-item:hover {
+  transform: translateX(3px);
+}
+.kpi-list-item .kpi-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.kpi-list-item .kpi-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.kpi-list-item .kpi-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+}
+.kpi-list-item .kpi-delta {
+  font-size: 12px;
+  color: var(--green);
+  text-align: right;
+}
+.kpi-list-item .kpi-delta.down {
+  color: var(--red);
+}
+
+@media (max-width: 900px) {
+  .car-list-item, .driver-list-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .car-list-item .col-actions {
+    justify-content: flex-start;
+  }
+}
+

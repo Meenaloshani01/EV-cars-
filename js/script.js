@@ -387,23 +387,253 @@ async function updateUserProfile(userId, updates) {
 
   // ---------- SVG sparkline ----------
   function spark(el, points, color = '#00e7ff') {
-    if (!el) return;
-    const w = el.clientWidth || 300, h = el.clientHeight || 80;
-    const min = Math.min(...points), max = Math.max(...points);
-    const sx = w / (points.length - 1);
-    const ny = v => h - 6 - ((v - min) / Math.max(1, max - min)) * (h - 12);
-    const d = points.map((v, i) => (i === 0 ? 'M' : 'L') + (i * sx).toFixed(1) + ',' + ny(v).toFixed(1)).join(' ');
-    const area = d + ` L ${w},${h} L 0,${h} Z`;
-    el.innerHTML = `
+    if (!el || !points.length) return;
+    const w = el.clientWidth || 300, h = el.clientHeight || 120;
+    
+    // Padding to make space for labels
+    const padLeft = 50;
+    const padRight = 15;
+    const padTop = 20;
+    const padBottom = 20;
+    const plotW = w - padLeft - padRight;
+    const plotH = h - padTop - padBottom;
+    
+    const min = Math.min(...points);
+    const max = Math.max(...points);
+    const avg = Math.round(points.reduce((s, x) => s + x, 0) / points.length);
+    const current = points[points.length - 1];
+    
+    // X step
+    const sx = plotW / Math.max(1, points.length - 1);
+    
+    // Y normalization
+    const range = Math.max(1, max - min);
+    const ny = v => h - padBottom - ((v - min) / range) * plotH;
+    
+    // Points list path
+    const d = points.map((v, i) => {
+      const x = padLeft + i * sx;
+      const y = ny(v);
+      return (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+    
+    const area = d + ` L ${(padLeft + plotW).toFixed(1)},${(h - padBottom).toFixed(1)} L ${padLeft.toFixed(1)},${(h - padBottom).toFixed(1)} Z`;
+    
+    // Determine units based on element ID
+    let unit = "";
+    let labelType = "";
+    if (el.id === 'dspark' || el.id === 'liveSpark') {
+      unit = " km/h";
+      labelType = "Speed";
+    } else if (el.id === 'pspark') {
+      unit = "%";
+      labelType = "Eco Score";
+    } else if (el.id === 'revSpark') {
+      unit = "";
+      labelType = "₹";
+    }
+    
+    // Grid values: max, min, avg
+    const gridValues = [max, avg, min];
+    // Remove duplicates if values are close
+    const uniqueGridValues = Array.from(new Set(gridValues)).sort((a,b) => b - a);
+    
+    let svg = `
       <defs>
-        <linearGradient id="gradFill" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stop-color="${color}" stop-opacity="0.7"/>
+        <linearGradient id="gradFill-${el.id}" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="${color}" stop-opacity="0.3"/>
           <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
         </linearGradient>
+        <filter id="glow-${el.id}" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
       </defs>
-      <path class="area" d="${area}"/>
-      <path class="line" d="${d}" stroke="${color}"/>
     `;
+    
+    // Draw Grid Lines & Labels
+    uniqueGridValues.forEach(val => {
+      const y = ny(val);
+      let displayVal = val.toLocaleString();
+      if (labelType === '₹') {
+        displayVal = '₹' + displayVal;
+      } else {
+        displayVal = displayVal + unit;
+      }
+      
+      svg += `
+        <line x1="${padLeft}" y1="${y}" x2="${w - padRight}" y2="${y}" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="2,2" />
+        <text x="${padLeft - 8}" y="${y + 4}" text-anchor="end" fill="var(--muted)" style="font-size: 9px; font-family: system-ui, sans-serif;">${displayVal}</text>
+      `;
+    });
+    
+    // Draw X-axis line
+    svg += `<line x1="${padLeft}" y1="${h - padBottom}" x2="${w - padRight}" y2="${h - padBottom}" stroke="rgba(255,255,255,0.12)" stroke-width="1" />`;
+    
+    // Draw timeline indicators
+    let startLabel = "Start";
+    let endLabel = "Now";
+    if (el.id === 'pspark') {
+      startLabel = "2 weeks ago";
+      endLabel = "Today";
+    } else if (el.id === 'revSpark') {
+      startLabel = "Start";
+      endLabel = "End";
+    }
+    
+    svg += `
+      <text x="${padLeft}" y="${h - 4}" text-anchor="start" fill="var(--muted)" style="font-size: 9px; font-family: system-ui, sans-serif;">${startLabel}</text>
+      <text x="${w - padRight}" y="${h - 4}" text-anchor="end" fill="var(--muted)" style="font-size: 9px; font-family: system-ui, sans-serif;">${endLabel}</text>
+    `;
+
+    // Draw area and line path
+    svg += `
+      <path d="${area}" fill="url(#gradFill-${el.id})" />
+      <path d="${d}" fill="none" stroke="${color}" stroke-width="2" filter="url(#glow-${el.id})" style="stroke-linecap: round; stroke-linejoin: round;" />
+    `;
+    
+    // Draw dot at current value
+    const lastX = padLeft + plotW;
+    const lastY = ny(current);
+    svg += `
+      <circle cx="${lastX}" cy="${lastY}" r="4" fill="${color}" filter="url(#glow-${el.id})" />
+      <circle cx="${lastX}" cy="${lastY}" r="2" fill="white" />
+    `;
+    
+    // Add title in top-left
+    let title = labelType;
+    if (el.id === 'dspark') title = "Live Speed Profile";
+    else if (el.id === 'liveSpark') title = "Fleet Average Speed";
+    else if (el.id === 'pspark') title = "Eco driving performance index";
+    else if (el.id === 'revSpark') title = "Profit Index";
+    
+    svg += `
+      <text x="${padLeft}" y="${padTop - 8}" fill="var(--muted)" style="font-size: 10px; font-weight: bold; letter-spacing: 0.5px; text-transform: uppercase; font-family: system-ui, sans-serif;">
+        ${title} (Current: ${labelType === '₹' ? '₹' + current.toLocaleString() : current + unit})
+      </text>
+    `;
+
+    // Draw guide line and marker for hover
+    svg += `
+      <line id="${el.id}-guide" x1="0" y1="${padTop}" x2="0" y2="${h - padBottom}" stroke="${color}" stroke-width="1.5" stroke-dasharray="3,3" opacity="0" style="pointer-events: none;" />
+      <circle id="${el.id}-marker" cx="0" cy="0" r="5" fill="${color}" stroke="#ffffff" stroke-width="1.5" opacity="0" style="pointer-events: none;" />
+    `;
+    
+    el.innerHTML = svg;
+
+    // Save interactive parameters for event listener
+    el._sparkPoints = points;
+    el._sparkColor = color;
+    el._sparkPadLeft = padLeft;
+    el._sparkPadRight = padRight;
+    el._sparkPadTop = padTop;
+    el._sparkPadBottom = padBottom;
+    el._sparkMin = min;
+    el._sparkMax = max;
+    el._sparkUnit = unit;
+    el._sparkLabelType = labelType;
+    el._sparkTitle = title;
+
+    // Attach hover listener once
+    if (!el._hasSparkHover) {
+      el._hasSparkHover = true;
+      el.style.cursor = 'crosshair';
+
+      el.addEventListener('mousemove', (e) => {
+        const pts = el._sparkPoints;
+        if (!pts || !pts.length) return;
+        const rect = el.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        
+        const padLeft = el._sparkPadLeft;
+        const padRight = el._sparkPadRight;
+        const padTop = el._sparkPadTop;
+        const padBottom = el._sparkPadBottom;
+        const plotW = rect.width - padLeft - padRight;
+        const plotH = rect.height - padTop - padBottom;
+        const min = el._sparkMin;
+        const max = el._sparkMax;
+        const unit = el._sparkUnit;
+        const labelType = el._sparkLabelType;
+        
+        const sx = plotW / Math.max(1, pts.length - 1);
+        const relativeX = mouseX - padLeft;
+        let idx = Math.round(relativeX / sx);
+        idx = Math.max(0, Math.min(pts.length - 1, idx));
+        
+        const val = pts[idx];
+        const range = Math.max(1, max - min);
+        const valY = rect.height - padBottom - ((val - min) / range) * plotH;
+        const valX = padLeft + idx * sx;
+        
+        const guide = el.querySelector(`#${el.id}-guide`);
+        const marker = el.querySelector(`#${el.id}-marker`);
+        if (guide) {
+          guide.setAttribute('x1', valX);
+          guide.setAttribute('x2', valX);
+          guide.setAttribute('y1', padTop);
+          guide.setAttribute('y2', rect.height - padBottom);
+          guide.style.opacity = '1';
+        }
+        if (marker) {
+          marker.setAttribute('cx', valX);
+          marker.setAttribute('cy', valY);
+          marker.style.opacity = '1';
+        }
+        
+        let tooltip = document.getElementById('chartTooltip');
+        if (!tooltip) {
+          tooltip = document.createElement('div');
+          tooltip.id = 'chartTooltip';
+          tooltip.style.cssText = `
+            position: fixed;
+            background: rgba(8, 11, 32, 0.95);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            border: 1px solid rgba(0, 231, 255, 0.3);
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 0 15px rgba(0, 231, 255, 0.25);
+            font-family: system-ui, sans-serif;
+          `;
+          document.body.appendChild(tooltip);
+        }
+        
+        let displayVal = val.toLocaleString();
+        if (labelType === '₹') {
+          displayVal = '₹' + displayVal;
+        } else {
+          displayVal = displayVal + unit;
+        }
+        
+        tooltip.innerHTML = `
+          <div style="font-weight: 700; color: ${el._sparkColor || '#00e7ff'}; margin-bottom: 2px;">${el._sparkTitle}</div>
+          <div style="font-size: 13px;">Value: <strong>${displayVal}</strong></div>
+          <div style="font-size: 10px; color: var(--muted); margin-top: 4px;">Data index: Point ${idx + 1} of ${pts.length}</div>
+        `;
+        tooltip.style.borderColor = el._sparkColor;
+        tooltip.style.boxShadow = `0 0 15px ${el._sparkColor}40`;
+        tooltip.style.display = 'block';
+        tooltip.style.left = e.clientX + 12 + 'px';
+        tooltip.style.top = e.clientY - 35 + 'px';
+      });
+      
+      el.addEventListener('mouseleave', () => {
+        const guide = el.querySelector(`#${el.id}-guide`);
+        const marker = el.querySelector(`#${el.id}-marker`);
+        if (guide) guide.style.opacity = '0';
+        if (marker) marker.style.opacity = '0';
+        
+        const tooltip = document.getElementById('chartTooltip');
+        if (tooltip) tooltip.style.display = 'none';
+      });
+    }
   }
 
   // ---------- Render utilities ----------
@@ -919,6 +1149,9 @@ async function updateUserProfile(userId, updates) {
         <div class="glass panel">
           <h3>📈 3-Month Fleet Income</h3>
           <svg id="incomeChart" style="width: 100%; height: 300px; margin-top: 10px;"></svg>
+          <div style="font-size:11px; color:var(--muted); margin: 6px 0 10px 0; line-height: 1.4; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 8px;">
+            💡 <strong>About Fleet Income:</strong> Visualizes the consolidated gross revenue aggregated across the entire fleet of 50 vehicles for March, April, and May. Values are represented in Lakhs (L). Hover over each bar to see precise numeric revenue metrics.
+          </div>
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; font-size: 12px;">
             <div style="padding: 8px; background: rgba(0,231,255,0.08); border-radius: 6px; text-align: center;">
               <div style="color: var(--muted); margin-bottom: 4px;">March</div>
@@ -1125,6 +1358,17 @@ async function updateUserProfile(userId, updates) {
     </div>`;
   }
 
+  function kpiListItem(label, value, delta, dir, onclick = '') {
+    const clickAttr = onclick ? `onclick="${onclick}" style="cursor:pointer;"` : '';
+    return `<div class="glass kpi-list-item neon-border" ${clickAttr}>
+      <div class="kpi-info">
+        <span class="kpi-label">${label}</span>
+        <span class="kpi-value">${value}</span>
+      </div>
+      <span class="kpi-delta ${dir || ''}">${delta || ''}</span>
+    </div>`;
+  }
+
   window.setGarageFilter = function(filterName) {
     window._garageFilter = filterName;
     renderGarage(document.getElementById('view'), fleet());
@@ -1277,8 +1521,8 @@ async function updateUserProfile(userId, updates) {
                 ${catCars.length === 0 ? `
                   <div style="color:var(--muted); font-size:13px; text-align:center; padding:20px;">No vehicles found in this category.</div>
                 ` : `
-                  <div class="grid-auto">
-                    ${catCars.map(c => carCard(c)).join('')}
+                  <div class="car-list">
+                    ${catCars.map(c => carListItem(c)).join('')}
                   </div>
                 `}
               </div>
@@ -1289,22 +1533,27 @@ async function updateUserProfile(userId, updates) {
     `;
   }
 
-  function carCard(c) {
-    return `<div class="glass car-card">
-      <div class="head">
-        <div>
-          <div class="brand" style="cursor:pointer;" onclick="window.openCarTelemetryModal('${c.id}')">${c.brand}</div>
-          <div class="vid">${c.id} · ${c.category}</div>
-        </div>
+  function carListItem(c) {
+    return `<div class="glass car-list-item">
+      <div class="col-main">
+        <div class="brand" style="cursor:pointer;" onclick="window.openCarTelemetryModal('${c.id}')">${c.brand}</div>
+        <div class="vid">${c.id} · ${c.category}</div>
+      </div>
+      <div class="col-status">
         ${c.charging ? pill('Charging', 'charging') : c.speed > 90 ? pill('Overspeed', 'danger') : c.speed > 0 ? pill('On Trip', 'on') : pill('Idle', 'off')}
       </div>
-      <div class="ev-illu" style="cursor:pointer;" onclick="window.openCarTelemetryModal('${c.id}')">🚗⚡</div>
-      <div class="row"><span>Battery</span><b>${c.battery}%</b></div>
-      <div class="batt-bar ${c.battery < 25 ? 'warn' : ''}"><i style="width:${c.battery}%"></i></div>
-      <div class="row"><span>Range</span><b>${c.range} km</b></div>
-      <div class="row"><span>Motor</span><b>${c.motor}</b></div>
-      <div class="row"><span>Condition</span><b>${c.condition}%</b></div>
-      <div class="actions">
+      <div class="col-battery">
+        <div class="row"><span>Battery:</span> <b>${c.battery}%</b></div>
+        <div class="batt-bar ${c.battery < 25 ? 'warn' : ''}"><i style="width:${c.battery}%"></i></div>
+      </div>
+      <div class="col-stats">
+        <div><span>Range</span><b>${c.range} km</b></div>
+        <div><span>Condition</span><b>${c.condition}%</b></div>
+      </div>
+      <div class="col-motor">
+        <span>Motor:</span><b>${c.motor}</b>
+      </div>
+      <div class="col-actions">
         <button class="btn" onclick="window.openCarTelemetryModal('${c.id}')">View</button>
         <button class="btn ghost" onclick="window.openCarTelemetryModal('${c.id}')">Edit</button>
         <button class="btn danger" onclick="window.removeVehicle('${c.id}')">Remove</button>
@@ -1339,6 +1588,9 @@ async function updateUserProfile(userId, updates) {
         <div class="glass panel">
           <h3>Fleet Speed (live)</h3>
           <svg class="spark" id="liveSpark"></svg>
+          <div style="font-size:11px; color:var(--muted); margin: 6px 0 12px 0; line-height: 1.4; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 8px;">
+            💡 <strong>About Fleet Speed:</strong> Tracks the rolling average speed of all active vehicles on trip. Refreshed in real-time every 1.5 seconds. Hover over the graph to view specific values.
+          </div>
           <div class="row" style="margin-top:10px;"><span>Avg Speed</span><b id="avgSpeed">— km/h</b></div>
           <div class="row"><span>Peak Speed</span><b id="peakSpeed">— km/h</b></div>
           <div class="row"><span>Vehicles Online</span><b>${f.length}</b></div>
@@ -1632,41 +1884,45 @@ async function updateUserProfile(userId, updates) {
         </div>
       </div>
 
-      <div class="grid-auto">
+      <div class="driver-list">
         ${drivers.length === 0 ? `
-          <div class="glass panel" style="grid-column: 1 / -1; text-align: center; color: var(--muted); padding: 32px;">
+          <div class="glass panel" style="text-align: center; color: var(--muted); padding: 32px;">
             No driver data found for the current filter.
           </div>
-        ` : drivers.map(d => `<div class="glass panel">
-          <div class="row">
-            <b style="font-size:16px;">${d.name}</b>
-            ${pill(d.safety > 80 ? 'Safe' : d.safety > 60 ? 'Average' : 'Risky', d.safety > 80 ? 'on' : d.safety > 60 ? 'warn' : 'danger')}
-          </div>
-          <div style="display:flex; gap:16px; align-items:center; margin-top:12px;">
-            <div class="circle" style="--p:${d.safety}; --c: var(--cyan);"><span>${d.safety}</span></div>
-            <div style="flex:1;">
-              <div class="row"><span>Eco Score</span><b>${d.eco}</b></div>
-              <div class="batt-bar"><i style="width:${d.eco}%"></i></div>
-              <div class="row" style="margin-top:8px;"><span>Avg Speed</span><b>${d.avg} km/h</b></div>
-              
-              <div class="row">
-                <span>Overspeeding Violations</span>
-                <b style="color:${d.over > 0 ? 'var(--red)' : 'var(--text)'}; font-weight:600;">${d.over}x</b>
+        ` : drivers.map(d => `<div class="glass driver-list-item">
+          <div class="col-driver">
+            <div class="avatar" style="width:36px; height:36px; border-radius:50%; font-weight:bold; display:grid; place-items:center;">${d.name.slice(0, 1).toUpperCase()}</div>
+            <div>
+              <b style="font-size:16px;">${d.name}</b>
+              <div style="margin-top: 4px;">
+                ${pill(d.safety > 80 ? 'Safe' : d.safety > 60 ? 'Average' : 'Risky', d.safety > 80 ? 'on' : d.safety > 60 ? 'warn' : 'danger')}
               </div>
-              ${d.over > 0 ? `
-                <div style="font-size: 11px; color: var(--muted); margin-bottom: 6px; margin-top: 2px; line-height: 1.4;">
-                  ${Object.entries(d.overspeedByMonth).map(([m, val]) => {
-                    const [year, month] = m.split('-');
-                    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                    const monthLabel = monthNames[parseInt(month) - 1];
-                    return `• ${monthLabel}: <b>${val}x</b>`;
-                  }).join(' &nbsp; ')}
-                </div>
-              ` : ''}
-              
-              <div class="row"><span>Sudden Braking</span><b>${d.brakes}x</b></div>
-              <div class="row" style="font-size:11px; color:var(--muted); margin-top:4px;"><span>Total Distance</span><b>${Math.round(d.distance).toLocaleString()} km</b></div>
             </div>
+          </div>
+          <div class="col-score">
+            <div class="row-simple"><span>Safety Score</span><b>${d.safety}%</b></div>
+            <div class="batt-bar"><i style="width:${d.safety}%"></i></div>
+          </div>
+          <div class="col-score">
+            <div class="row-simple"><span>Eco Score</span><b>${d.eco}%</b></div>
+            <div class="batt-bar"><i style="width:${d.eco}%"></i></div>
+          </div>
+          <div class="col-violations">
+            <div>Overspeed: <b style="color:${d.over > 0 ? 'var(--red)' : 'var(--text)'}; font-weight:600;">${d.over}x</b></div>
+            <div style="margin-top: 4px;">Braking: <b>${d.brakes}x</b></div>
+            ${d.over > 0 ? `
+              <div style="font-size: 10px; color: var(--muted); margin-top: 4px; line-height: 1.3;">
+                ${Object.entries(d.overspeedByMonth).map(([m, val]) => {
+                  const month = m.split('-')[1];
+                  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                  return `${monthNames[parseInt(month) - 1]}:${val}x`;
+                }).join(' ')}
+              </div>
+            ` : ''}
+          </div>
+          <div class="col-details">
+            <div>Avg Speed: <b>${d.avg} km/h</b></div>
+            <div style="margin-top: 4px;">Distance: <b>${Math.round(d.distance).toLocaleString()} km</b></div>
           </div>
         </div>`).join('')}
       </div>
@@ -1707,27 +1963,83 @@ async function updateUserProfile(userId, updates) {
   }
 
   function radarSVG(d) {
-    const metrics = [{ k: 'Safety', v: d.safety }, { k: 'Eco', v: d.eco }, { k: 'Smooth', v: 100 - d.brakes * 4 }, { k: 'Discipline', v: 100 - d.over * 6 }, { k: 'Avg Spd', v: Math.min(100, d.avg + 10) }];
-    const cx = 160, cy = 140, r = 110;
+    const metrics = [
+      { k: 'Safety', v: d.safety },
+      { k: 'Eco', v: d.eco },
+      { k: 'Smoothness', v: 100 - d.brakes * 4 },
+      { k: 'Discipline', v: 100 - d.over * 6 },
+      { k: 'Avg Speed', v: Math.min(100, d.avg + 10) }
+    ];
+    const cx = 160, cy = 145, r = 100;
+    
+    // Concentric grid rings
+    const gridLevels = [0.2, 0.4, 0.6, 0.8, 1.0];
+    let gridHTML = '';
+    
+    gridLevels.forEach(lvl => {
+      const lvlPts = metrics.map((_, i) => {
+        const a = -Math.PI / 2 + (i / metrics.length) * Math.PI * 2;
+        return [cx + Math.cos(a) * r * lvl, cy + Math.sin(a) * r * lvl];
+      });
+      // Concentric polygon ring
+      gridHTML += `<polygon points="${lvlPts.map(p => p.join(',')).join(' ')}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1" stroke-dasharray="2,2"/>`;
+      
+      // Level labels along the vertical axis (except level 0)
+      const labelY = cy - r * lvl;
+      gridHTML += `<text x="${cx + 6}" y="${labelY + 3}" fill="rgba(255,255,255,0.35)" style="font-size: 8px; font-family: system-ui, sans-serif;">${Math.round(lvl * 100)}</text>`;
+    });
+
     const pts = metrics.map((m, i) => {
       const a = -Math.PI / 2 + (i / metrics.length) * Math.PI * 2;
       const rad = (m.v / 100) * r;
       return [cx + Math.cos(a) * rad, cy + Math.sin(a) * rad];
     });
+    
     const bgPts = metrics.map((_, i) => {
       const a = -Math.PI / 2 + (i / metrics.length) * Math.PI * 2;
       return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
     });
+    
+    // Connect axes lines from center to outer points
+    const axesHTML = bgPts.map(p => `<line x1="${cx}" y1="${cy}" x2="${p[0]}" y2="${p[1]}" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>`).join('');
+    
+    // Labels containing values
     const labels = metrics.map((m, i) => {
       const a = -Math.PI / 2 + (i / metrics.length) * Math.PI * 2;
-      return `<text x="${cx + Math.cos(a) * (r + 18)}" y="${cy + Math.sin(a) * (r + 18)}" text-anchor="middle">${m.k}</text>`;
+      const labelX = cx + Math.cos(a) * (r + 20);
+      const labelY = cy + Math.sin(a) * (r + 14);
+      let anchor = 'middle';
+      if (Math.cos(a) > 0.1) anchor = 'start';
+      else if (Math.cos(a) < -0.1) anchor = 'end';
+      
+      return `<text x="${labelX}" y="${labelY}" text-anchor="${anchor}" fill="rgba(255,255,255,0.85)" style="font-size: 11px; font-weight: 600; font-family: system-ui, sans-serif;">
+        ${m.k}: <tspan fill="var(--cyan)" font-weight="700">${Math.round(m.v)}</tspan>
+      </text>`;
     }).join('');
-    return `<svg class="radar" viewBox="0 0 320 290" width="100%" height="290">
-      ${bgPts.map(p => `<line x1="${cx}" y1="${cy}" x2="${p[0]}" y2="${p[1]}"/>`).join('')}
-      <polygon class="bg" points="${bgPts.map(p => p.join(',')).join(' ')}"/>
-      <polygon class="val" points="${pts.map(p => p.join(',')).join(' ')}"/>
-      ${labels}
-    </svg>`;
+    
+    // Highlight points on the value polygon
+    const pointsHTML = pts.map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="var(--cyan)" stroke="#fff" stroke-width="1" filter="drop-shadow(0 0 4px var(--cyan))" />`).join('');
+
+    return `
+      <svg class="radar" viewBox="0 0 320 290" width="100%" height="290">
+        ${gridHTML}
+        ${axesHTML}
+        <polygon class="val" points="${pts.map(p => p.join(',')).join(' ')}"/>
+        ${pointsHTML}
+        ${labels}
+      </svg>
+      <div style="font-size: 12px; line-height: 1.5; color: var(--muted); margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
+        <p style="margin: 0; font-weight: 600; color: rgba(255,255,255,0.95); margin-bottom: 6px;">💡 About Top Drivers Radar View:</p>
+        <p style="margin: 0;">This chart scales from 0 to 100 on five core driver telemetry dimensions:</p>
+        <ul style="margin: 4px 0 0 0; padding-left: 20px; color: var(--muted); display: flex; flex-direction: column; gap: 4px;">
+          <li><strong>Safety Score:</strong> Evaluates sudden accelerations, braking, and speeding.</li>
+          <li><strong>Eco Driving:</strong> Assesses energy efficiency and regenerative braking reuse.</li>
+          <li><strong>Smoothness:</strong> High score indicates clean, gradual deceleration profile.</li>
+          <li><strong>Discipline:</strong> Tracks speed threshold conformity (avoids >90 km/h).</li>
+          <li><strong>Avg Speed Index:</strong> Measures average speed relative to route guidelines.</li>
+        </ul>
+      </div>
+    `;
   }
 
   function renderMaintenance(root, f) {
@@ -1746,8 +2058,8 @@ async function updateUserProfile(userId, updates) {
       
       <div class="kpi-grid">
         ${kpi('Total Service Cost', '₹' + totalService.toLocaleString(), `Maint: ₹${totalMaint.toLocaleString()} | Charging: ₹${totalCharging.toLocaleString()}`)}
-        ${kpi('Average Service Cost', '$' + avgService.toLocaleString(), `Per vehicle average`)}
-        ${kpi('Total Charging Cost', '$' + totalCharging.toLocaleString(), `Energy cost (18% of revenue)`)}
+        ${kpi('Average Service Cost', '₹' + avgService.toLocaleString(), `Per vehicle average`)}
+        ${kpi('Total Charging Cost', '₹' + totalCharging.toLocaleString(), `Energy cost (18% of revenue)`)}
         ${kpi('Fleet Condition Avg', (f.length > 0 ? Math.round(f.reduce((s, c) => s + c.condition, 0) / f.length) : 0) + '%', '')}
       </div>
 
@@ -1759,10 +2071,10 @@ async function updateUserProfile(userId, updates) {
         <div class="glass panel">
           <h3>Service Timeline</h3>
           <div class="timeline">
-            <div class="item"><b>EV-1003</b> · Brake pad replaced<br><span style="color:var(--muted);font-size:12px;">2 days ago · $180</span></div>
-            <div class="item"><b>EV-1006</b> · Battery coolant top-up<br><span style="color:var(--muted);font-size:12px;">5 days ago · $60</span></div>
-            <div class="item"><b>EV-1001</b> · Tire rotation<br><span style="color:var(--muted);font-size:12px;">1 week ago · $40</span></div>
-            <div class="item"><b>EV-1008</b> · Software update OTA<br><span style="color:var(--muted);font-size:12px;">2 weeks ago · $0</span></div>
+            <div class="item"><b>EV-1003</b> · Brake pad replaced<br><span style="color:var(--muted);font-size:12px;">2 days ago · ₹180</span></div>
+            <div class="item"><b>EV-1006</b> · Battery coolant top-up<br><span style="color:var(--muted);font-size:12px;">5 days ago · ₹60</span></div>
+            <div class="item"><b>EV-1001</b> · Tire rotation<br><span style="color:var(--muted);font-size:12px;">1 week ago · ₹40</span></div>
+            <div class="item"><b>EV-1008</b> · Software update OTA<br><span style="color:var(--muted);font-size:12px;">2 weeks ago · ₹0</span></div>
           </div>
         </div>
       </div>
@@ -1796,9 +2108,9 @@ async function updateUserProfile(userId, updates) {
                       ${c.condition}% Health
                     </span>
                   </td>
-                  <td style="color:${maint > 0 ? 'var(--red)' : 'var(--text)'}">$${maint.toLocaleString()}</td>
-                  <td style="color:var(--cyan); font-weight:600;">$${charging.toLocaleString()}</td>
-                  <td style="color:var(--green); font-weight:600;">$${total.toLocaleString()}</td>
+                  <td style="color:${maint > 0 ? 'var(--red)' : 'var(--text)'}">₹${maint.toLocaleString()}</td>
+                  <td style="color:var(--cyan); font-weight:600;">₹${charging.toLocaleString()}</td>
+                  <td style="color:var(--green); font-weight:600;">₹${total.toLocaleString()}</td>
                 </tr>
               `;
             }).join('')}
@@ -1809,17 +2121,17 @@ async function updateUserProfile(userId, updates) {
               <td>Average</td>
               <td>All Vehicles</td>
               <td>-</td>
-              <td style="color:var(--red)">$${avgMaint.toLocaleString()}</td>
-              <td style="color:var(--cyan)">$${avgCharging.toLocaleString()}</td>
-              <td style="color:var(--green)">$${avgService.toLocaleString()}</td>
+              <td style="color:var(--red)">₹${avgMaint.toLocaleString()}</td>
+              <td style="color:var(--cyan)">₹${avgCharging.toLocaleString()}</td>
+              <td style="color:var(--green)">₹${avgService.toLocaleString()}</td>
             </tr>
             <tr style="font-weight:bold; background:rgba(255,255,255,0.04);">
               <td>Total</td>
               <td>All Vehicles</td>
               <td>-</td>
-              <td style="color:var(--red)">$${totalMaint.toLocaleString()}</td>
-              <td style="color:var(--cyan)">$${totalCharging.toLocaleString()}</td>
-              <td style="color:var(--green)">$${totalService.toLocaleString()}</td>
+              <td style="color:var(--red)">₹${totalMaint.toLocaleString()}</td>
+              <td style="color:var(--cyan)">₹${totalCharging.toLocaleString()}</td>
+              <td style="color:var(--green)">₹${totalService.toLocaleString()}</td>
             </tr>
           </tfoot>
           ` : ''}
@@ -2080,15 +2392,18 @@ async function updateUserProfile(userId, updates) {
       </div>
 
       <div class="grid-3">
-        ${kpi('Total Revenue', '$' + totalRevenue.toLocaleString(), _revFilterState.type === 'daily' ? 'For single day' : `${dates.length} days total`)}
-        ${kpi('Total Expenses', '$' + (totalMaintenance + energyCost + opsCost).toLocaleString(), 'Maint + Energy + Ops')}
-        ${kpi('Net Profit', '$' + profit.toLocaleString(), 'Margin ' + (totalRevenue > 0 ? Math.round(profit / totalRevenue * 100) : 0) + '%', profit < 0 ? 'down' : '')}
+        ${kpi('Total Revenue', '₹' + totalRevenue.toLocaleString(), _revFilterState.type === 'daily' ? 'For single day' : `${dates.length} days total`)}
+        ${kpi('Total Expenses', '₹' + (totalMaintenance + energyCost + opsCost).toLocaleString(), 'Maint + Energy + Ops')}
+        ${kpi('Net Profit', '₹' + profit.toLocaleString(), 'Margin ' + (totalRevenue > 0 ? Math.round(profit / totalRevenue * 100) : 0) + '%', profit < 0 ? 'down' : '')}
       </div>
       
       <div class="grid-2" style="margin-top:16px;">
         <div class="glass panel">
           <h3>Profit Trend ${_revFilterState.type === 'daily' ? '(Last 7 Days)' : '(Selected Period)'}</h3>
           <svg class="spark" id="revSpark" style="height:160px;"></svg>
+          <div style="font-size:11px; color:var(--muted); margin: 6px 0 10px 0; line-height: 1.4; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 8px;">
+            💡 <strong>About Profit Trend:</strong> Tracks daily net income fluctuations after operating expenses are deducted from fleet ride revenues. Hover over the curve to inspect raw numeric data point details.
+          </div>
           <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:11px; color:var(--muted);">
             <span>${_revFilterState.type === 'daily' ? '7 days ago' : dates[0]}</span>
             <span>${_revFilterState.type === 'daily' ? _revFilterState.date : dates[dates.length - 1]}</span>
@@ -2101,6 +2416,9 @@ async function updateUserProfile(userId, updates) {
             { label: 'Maintenance', value: totalMaintenance, color: '#b15cff' },
             { label: 'Operations (10%)', value: opsCost, color: '#2a5cff' },
           ])}
+          <div style="font-size:11px; color:var(--muted); margin-top:12px; line-height: 1.4; border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 8px;">
+            💡 <strong>About Expenses:</strong> Shows the split of total expenses. <em>Energy Cost</em> represents charging electricity fees (estimated at 18% of revenue). <em>Maintenance</em> lists sum of parts &amp; service logs. <em>Operations</em> covers license and admin overheads (10% of revenue).
+          </div>
         </div>
       </div>
 
@@ -2127,9 +2445,9 @@ async function updateUserProfile(userId, updates) {
                 <td><span class="status-pill off">${b.category}</span></td>
                 <td><b>${b.count}</b> vehicle(s)</td>
                 <td>${b.distance.toLocaleString()} km</td>
-                <td style="color:var(--green); font-weight:600;">$${b.revenue.toLocaleString()}</td>
-                <td style="color:${b.maintenance > 0 ? 'var(--red)' : 'var(--text)'}">$${b.maintenance.toLocaleString()}</td>
-                <td style="color:${b.profit >= 0 ? 'var(--cyan)' : 'var(--red)'}; font-weight:600;">$${b.profit.toLocaleString()}</td>
+                <td style="color:var(--green); font-weight:600;">₹${b.revenue.toLocaleString()}</td>
+                <td style="color:${b.maintenance > 0 ? 'var(--red)' : 'var(--text)'}">₹${b.maintenance.toLocaleString()}</td>
+                <td style="color:${b.profit >= 0 ? 'var(--cyan)' : 'var(--red)'}; font-weight:600;">₹${b.profit.toLocaleString()}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -2157,9 +2475,9 @@ async function updateUserProfile(userId, updates) {
                 <td><b>${c.id}</b></td>
                 <td>${c.brand}</td>
                 <td>${c.distance.toLocaleString()} km</td>
-                <td style="color:var(--green); font-weight:600;">$${c.revenue.toLocaleString()}</td>
-                <td style="color:${c.maintenance > 0 ? 'var(--red)' : 'var(--text)'}">$${c.maintenance.toLocaleString()}</td>
-                <td style="color:${c.profit >= 0 ? 'var(--cyan)' : 'var(--red)'}; font-weight:600;">$${c.profit.toLocaleString()}</td>
+                <td style="color:var(--green); font-weight:600;">₹${c.revenue.toLocaleString()}</td>
+                <td style="color:${c.maintenance > 0 ? 'var(--red)' : 'var(--text)'}">₹${c.maintenance.toLocaleString()}</td>
+                <td style="color:${c.profit >= 0 ? 'var(--cyan)' : 'var(--red)'}; font-weight:600;">₹${c.profit.toLocaleString()}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -2229,7 +2547,7 @@ async function updateUserProfile(userId, updates) {
       const x1 = cx + Math.cos(a1) * r, y1 = cy + Math.sin(a1) * r;
       return `<path d="M${cx},${cy} L${x0},${y0} A${r},${r} 0 ${large} 1 ${x1},${y1} Z" fill="${p.color}" opacity="0.9"/>`;
     }).join('');
-    const legend = parts.map(p => `<div class="row"><span><i style="display:inline-block;width:10px;height:10px;background:${p.color};border-radius:2px;margin-right:8px;box-shadow:0 0 8px ${p.color}"></i>${p.label}</span><b>$${p.value.toLocaleString()}</b></div>`).join('');
+    const legend = parts.map(p => `<div class="row"><span><i style="display:inline-block;width:10px;height:10px;background:${p.color};border-radius:2px;margin-right:8px;box-shadow:0 0 8px ${p.color}"></i>${p.label}</span><b>₹${p.value.toLocaleString()}</b></div>`).join('');
     return `<div style="display:flex; gap:16px; align-items:center;">
       <svg width="160" height="160" viewBox="0 0 160 160">${segs}<circle cx="80" cy="80" r="38" fill="#0a0d1f"/></svg>
       <div style="flex:1;">${legend}</div>
@@ -2257,7 +2575,7 @@ async function updateUserProfile(userId, updates) {
       <div class="glass panel" style="margin-top:16px;">
         <h3>Preview</h3>
         <table><thead><tr><th>Vehicle</th><th>Driver</th><th>Battery</th><th>Range</th><th>Revenue</th><th>Maintenance</th></tr></thead><tbody>
-          ${f.map(c => `<tr><td>${c.id} · ${c.brand}</td><td>${c.driver}</td><td>${c.battery}%</td><td>${c.range} km</td><td>$${c.revenue}</td><td>$${c.maintenance}</td></tr>`).join('')}
+          ${f.map(c => `<tr><td>${c.id} · ${c.brand}</td><td>${c.driver}</td><td>${c.battery}%</td><td>${c.range} km</td><td>₹${c.revenue}</td><td>₹${c.maintenance}</td></tr>`).join('')}
         </tbody></table>
       </div>
     `;
@@ -2295,22 +2613,38 @@ async function updateUserProfile(userId, updates) {
   function driverHome(root, c, u) {
     root.innerHTML = `
       <h2 class="page-title">Welcome, ${u.name || 'Driver'} <small>Your EV status</small></h2>
-      <div class="grid-2">
-        <div class="glass panel">
-          <h3>${c.brand} · ${c.id}</h3>
-          <div class="ev-illu" style="height:160px; font-size:80px;">🚗⚡</div>
-          <div class="row"><span>Battery</span><b>${c.battery}%</b></div>
-          <div class="batt-bar"><i style="width:${c.battery}%"></i></div>
-          <div class="row" style="margin-top:10px;"><span>Remaining Range</span><b>${c.range} km</b></div>
-          <div class="row"><span>Charging</span>${c.charging ? pill('Yes', 'charging') : pill('No', 'off')}</div>
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        <div class="glass car-list-item" style="padding: 20px; align-items: center; justify-content: space-between;">
+          <div class="col-main">
+            <h3 style="margin-bottom: 4px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px;">Current Vehicle</h3>
+            <div class="brand" style="font-size: 20px; font-weight:700;">${c.brand}</div>
+            <div class="vid" style="font-size: 12px; margin-top: 4px; color:var(--muted);">${c.id} · ${c.category}</div>
+          </div>
+          <div class="col-status">
+            ${c.charging ? pill('Charging', 'charging') : pill('Ready', 'on')}
+          </div>
+          <div class="col-battery" style="flex: 3; min-width: 200px;">
+            <div class="row"><span>Battery:</span> <b>${c.battery}%</b></div>
+            <div class="batt-bar"><i style="width:${c.battery}%"></i></div>
+            <div class="row" style="margin-top:8px;"><span>Remaining Range:</span> <b>${c.range} km</b></div>
+          </div>
         </div>
-        <div class="glass panel">
-          <h3>Today's Trip</h3>
-          <div class="circle" style="--p:${c.efficiency}; --c: var(--green);"><span>${c.efficiency}%</span></div>
-          <p style="color:var(--muted); margin-top:10px;">Eco efficiency for current trip</p>
-          <div class="row"><span>Distance</span><b>${rint(20, 80)} km</b></div>
-          <div class="row"><span>Avg Speed</span><b>${rint(35, 75)} km/h</b></div>
-          <div class="row"><span>Energy Used</span><b>${rint(5, 20)} kWh</b></div>
+        
+        <div class="glass car-list-item" style="padding: 20px; align-items: center; justify-content: space-between;">
+          <div class="col-main">
+            <h3 style="margin-bottom: 4px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px;">Today's Trip</h3>
+            <div class="brand" style="font-size: 20px; font-weight:700;">Active Driving Stats</div>
+            <div class="vid" style="font-size: 12px; margin-top: 4px; color:var(--muted);">Driver safety score &amp; speed</div>
+          </div>
+          <div class="col-status" style="flex: 1.5; display: flex; align-items: center; gap: 12px;">
+            <div class="circle" style="--p:${c.efficiency}; --c: var(--green); width: 70px; height: 70px;"><span style="font-size: 15px;">${c.efficiency}%</span></div>
+            <span style="font-size: 11px; color: var(--muted); text-transform: uppercase;">Eco Score</span>
+          </div>
+          <div class="col-stats" style="flex: 2.5; font-size: 13px; min-width: 180px;">
+            <div class="row" style="margin-bottom: 6px;"><span>Distance</span><b>${rint(20, 80)} km</b></div>
+            <div class="row" style="margin-bottom: 6px;"><span>Avg Speed</span><b>${rint(35, 75)} km/h</b></div>
+            <div class="row"><span>Energy Used</span><b>${rint(5, 20)} kWh</b></div>
+          </div>
         </div>
       </div>
     `;
@@ -2372,22 +2706,16 @@ async function updateUserProfile(userId, updates) {
       <!-- Specifications Panel -->
       <div class="glass panel">
         <h3>${c.brand} Specifications</h3>
-        <div class="grid-3">
-          <div>
-            <div class="row"><span>Vehicle ID</span><b>${c.id}</b></div>
-            <div class="row"><span>Category</span><b>${c.category}</b></div>
-            <div class="row"><span>Motor</span><b>${c.motor}</b></div>
-          </div>
-          <div>
-            <div class="row"><span>Battery Capacity</span><b>${c.batteryCapacity} kWh</b></div>
-            <div class="row"><span>Vehicle Weight</span><b>${c.weight} kg</b></div>
-            <div class="row"><span>Condition</span><b>${c.condition}%</b></div>
-          </div>
-          <div>
-            <div class="row"><span>Battery %</span><b>${c.battery}%</b></div>
-            <div class="row"><span>Range</span><b>${c.range} km</b></div>
-            <div class="row"><span>Status</span>${c.charging ? pill('Charging', 'charging') : pill('Ready', 'on')}</div>
-          </div>
+        <div class="spec-list">
+          <div class="spec-row"><span>Vehicle ID</span><b>${c.id}</b></div>
+          <div class="spec-row"><span>Category</span><b>${c.category}</b></div>
+          <div class="spec-row"><span>Motor</span><b>${c.motor}</b></div>
+          <div class="spec-row"><span>Battery Capacity</span><b>${c.batteryCapacity} kWh</b></div>
+          <div class="spec-row"><span>Vehicle Weight</span><b>${c.weight} kg</b></div>
+          <div class="spec-row"><span>Condition</span><b>${c.condition}%</b></div>
+          <div class="spec-row"><span>Battery %</span><b>${c.battery}%</b></div>
+          <div class="spec-row"><span>Range</span><b>${c.range} km</b></div>
+          <div class="spec-row"><span>Status</span><b>${c.charging ? pill('Charging', 'charging') : pill('Ready', 'on')}</b></div>
         </div>
       </div>
 
@@ -2428,10 +2756,10 @@ async function updateUserProfile(userId, updates) {
           <button class="btn" id="btnApplyDrvVehFilter" style="padding: 8px 16px; font-size:12px;">⚡ Apply Period</button>
         </div>
 
-        <div class="grid-3" style="margin-top:16px;">
-          ${kpi('Earnings Generated', '$' + rev.toLocaleString(), `From ${dates.length} day(s)`)}
-          ${kpi('Total Period Expenses', '$' + totalExpenses.toLocaleString(), `Maint: $${maint.toLocaleString()} | Charging: $${charging.toLocaleString()}`)}
-          ${kpi('Net Earnings', '$' + (rev - totalExpenses).toLocaleString(), 'Earnings minus Expenses', (rev - totalExpenses) < 0 ? 'down' : '')}
+        <div class="kpi-list" style="margin-top:16px;">
+          ${kpiListItem('Earnings Generated', '₹' + rev.toLocaleString(), `From ${dates.length} day(s)`)}
+          ${kpiListItem('Total Period Expenses', '₹' + totalExpenses.toLocaleString(), `Maint: ₹${maint.toLocaleString()} | Charging: ₹${charging.toLocaleString()}`)}
+          ${kpiListItem('Net Earnings', '₹' + (rev - totalExpenses).toLocaleString(), 'Earnings minus Expenses', (rev - totalExpenses) < 0 ? 'down' : '')}
         </div>
 
         <!-- Overspeed Warnings -->
@@ -2480,48 +2808,241 @@ async function updateUserProfile(userId, updates) {
   }
 
   function driverTrip(root, c) {
+    if (!window._activeTrip) {
+      root.innerHTML = `
+        <h2 class="page-title">Current Trip <small>Start simulation</small></h2>
+        <div class="glass panel" style="max-width: 600px; margin: 0 auto; padding: 24px;">
+          <h3 style="margin-bottom: 16px; color: var(--text);">Enter Vehicle Trip Details</h3>
+          <p style="color: var(--muted); font-size: 13px; margin-bottom: 20px;">Please provide the following information before starting your trip:</p>
+          
+          <form id="startTripForm" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-group">
+              <label for="tripOdometer">Odometer Reading (km)</label>
+              <input class="input" type="number" id="tripOdometer" required min="0" placeholder="e.g. 24500" style="margin-bottom: 4px;">
+              <span style="font-size: 11px; color: var(--muted);">(Total distance travelled by the vehicle)</span>
+            </div>
+            
+            <div class="form-group">
+              <label for="tripBattery">Current Battery Percentage (%)</label>
+              <input class="input" type="number" id="tripBattery" required min="10" max="100" placeholder="e.g. 80" style="margin-bottom: 4px;">
+              <span style="font-size: 11px; color: var(--muted);">(Enter value between 10 and 100)</span>
+            </div>
+            
+            <div class="form-group">
+              <label for="tripCarType">Car Type</label>
+              <select class="input" id="tripCarType" required>
+                <option value="" disabled selected>Select Car Model</option>
+                <option value="Hyundai Kona EV">Hyundai Kona EV</option>
+                <option value="Tata Nexon EV">Tata Nexon EV</option>
+                <option value="MG ZS EV">MG ZS EV</option>
+                <option value="Kia EV6">Kia EV6</option>
+                <option value="Other">Other EV Model</option>
+              </select>
+              <span style="font-size: 11px; color: var(--muted);">(e.g., Hyundai Kona EV, Tata Nexon EV, MG ZS EV, Kia EV6, etc.)</span>
+            </div>
+            
+            <div class="form-group">
+              <label>Driving Mode</label>
+              <div style="display: flex; gap: 20px; margin-top: 6px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; text-transform: none; color: var(--text);">
+                  <input type="radio" name="drivingMode" value="City" checked style="width: 16px; height: 16px; accent-color: var(--cyan);">
+                  City Driving
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; text-transform: none; color: var(--text);">
+                  <input type="radio" name="drivingMode" value="Highway" style="width: 16px; height: 16px; accent-color: var(--cyan);">
+                  Highway Driving
+                </label>
+              </div>
+            </div>
+            
+            <button class="btn block" type="submit" style="margin-top: 10px;">⚡ Start Trip</button>
+          </form>
+        </div>
+      `;
+      
+      document.getElementById('startTripForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const odo = Number(document.getElementById('tripOdometer').value);
+        const batt = Number(document.getElementById('tripBattery').value);
+        const carType = document.getElementById('tripCarType').value;
+        const drivingMode = document.querySelector('input[name="drivingMode"]:checked').value;
+        
+        window._activeTrip = {
+          odometer: odo,
+          battery: batt,
+          carType: carType,
+          drivingMode: drivingMode,
+          distance: 0,
+          initialBattery: batt
+        };
+        
+        driverTrip(root, c);
+      });
+      return;
+    }
+
+    // Trip is active
     let dist = 0;
     const hist = [];
+    
+    // Estimates Setup
+    const mode = window._activeTrip.drivingMode;
+    const initialOdo = window._activeTrip.odometer;
+    const initialBatt = window._activeTrip.battery;
+    const capacity = c.batteryCapacity || 75; // fallback
+    
+    // City has higher efficiency (6.5 km/1% battery) than Highway (4.8 km/1% battery)
+    const efficiency = mode === 'City' ? 6.5 : 4.8;
+    const energyConsumption = mode === 'City' ? '14.5 kWh/100 km' : '18.2 kWh/100 km';
+    
+    // Maintenance alert based on odometer
+    let maintAlert = "✓ Vehicle status healthy. No alerts.";
+    let maintColor = "var(--green)";
+    if (initialOdo > 100000) {
+      maintAlert = "⚠️ Full mechanical check recommended (odometer exceeds 100,000 km).";
+      maintColor = "var(--red)";
+    } else if (initialOdo > 50000) {
+      maintAlert = "🔧 Rotation of tires and brake check recommended.";
+      maintColor = "var(--amber)";
+    }
+
     root.innerHTML = `
-      <h2 class="page-title">Current Trip <small>Live</small></h2>
+      <h2 class="page-title">Current Trip <small>Live Simulation</small></h2>
       <div class="grid-2">
         <div class="glass panel">
           <h3><span class="pulse"></span>Live Telemetry</h3>
           <div class="circle" style="--p:${Math.min(100, c.speed)}; --c: var(--cyan);"><span id="ds">${c.speed}</span></div>
           <p style="color:var(--muted);margin-top:8px;">Current speed (km/h)</p>
-          <div class="row"><span>Distance Covered</span><b id="dd">0 km</b></div>
-          <div class="row"><span>Battery Prediction (end)</span><b>${Math.max(0, c.battery - 12)}%</b></div>
-          <div class="row"><span>Route</span><b>Sector 21 → Hub North</b></div>
+          <div class="row" style="margin-top:14px;"><span>Distance Covered</span><b id="dd">0 km</b></div>
+          <div class="row"><span>Odometer</span><b id="dodo">${initialOdo} km</b></div>
+          <div class="row"><span>Battery Percentage</span><b id="dbatt">${initialBatt}%</b></div>
+          <div class="batt-bar" style="margin-top:4px;"><i id="dbattbar" style="width:${initialBatt}%"></i></div>
         </div>
         <div class="glass panel">
-          <h3>Speed Trend</h3>
-          <svg class="spark" id="dspark" style="height:160px;"></svg>
+          <h3>Trip Estimations &amp; Alerts</h3>
+          <div class="spec-list">
+            <div class="spec-row">
+              <span>Car Type</span>
+              <b>${window._activeTrip.carType}</b>
+            </div>
+            <div class="spec-row">
+              <span>Driving Mode</span>
+              <b style="color: var(--cyan);">${mode} Driving</b>
+            </div>
+            <div class="spec-row">
+              <span>Remaining Range</span>
+              <b id="destsrange">${Math.round(initialBatt * efficiency)} km</b>
+            </div>
+            <div class="spec-row">
+              <span>Energy Consumption</span>
+              <b>${energyConsumption}</b>
+            </div>
+            <div class="spec-row">
+              <span>Battery Status</span>
+              <b id="destsstatus" style="color: ${initialBatt > 70 ? 'var(--green)' : initialBatt > 30 ? 'var(--amber)' : 'var(--red)'};">
+                ${initialBatt > 70 ? 'Healthy' : initialBatt > 30 ? 'Medium' : 'Low'}
+              </b>
+            </div>
+            <div class="spec-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+              <span style="font-size: 11px; text-transform: uppercase;">Charging Recommendation</span>
+              <b id="destschg" style="color: var(--cyan); text-align: left; font-size:12px;">
+                ${initialBatt < 30 ? '⚠️ Low Battery: Recommend immediate charging.' : '✓ Sufficient Battery: Smart charging suggested at off-peak hours.'}
+              </b>
+            </div>
+            <div class="spec-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+              <span style="font-size: 11px; text-transform: uppercase;">Maintenance Alerts</span>
+              <b id="destsmaint" style="color: ${maintColor}; text-align: left; font-size:12px;">${maintAlert}</b>
+            </div>
+          </div>
+          <div style="margin-top:16px;">
+            <button class="btn danger block" onclick="window.endTrip()">End Trip</button>
+          </div>
         </div>
       </div>
+      <div class="glass panel" style="margin-top:16px;">
+        <h3>Speed Trend</h3>
+        <svg class="spark" id="dspark" style="height:160px;"></svg>
+      </div>
     `;
+
     const ds = document.getElementById('ds');
     const dd = document.getElementById('dd');
+    const dodo = document.getElementById('dodo');
+    const dbatt = document.getElementById('dbatt');
+    const dbattbar = document.getElementById('dbattbar');
+    
+    const destsrange = document.getElementById('destsrange');
+    const destsstatus = document.getElementById('destsstatus');
+    const destschg = document.getElementById('destschg');
+
+    window.endTrip = () => {
+      window._activeTrip = null;
+      driverTrip(root, c);
+    };
+
     const update = () => {
+      if (!window._activeTrip) return;
       c.speed = Math.max(0, c.speed + rint(-10, 10));
       dist += c.speed / 3600 * 1.5;
+      
+      // Update Odometer
+      const currentOdo = Math.round(initialOdo + dist);
+      
+      // Update Battery % dynamically based on distance & mode efficiency
+      const rate = mode === 'City' ? 14.5 : 18.2;
+      const kwhUsed = dist * (rate / 100);
+      const battUsed = (kwhUsed / capacity) * 100;
+      const currentBatt = Math.max(0, Number((initialBatt - battUsed).toFixed(1)));
+      
+      // Update Range
+      const currentRange = Math.round(currentBatt * efficiency);
+      
+      // UI Updates
       ds.textContent = c.speed;
       dd.textContent = dist.toFixed(2) + ' km';
+      dodo.textContent = currentOdo + ' km';
+      dbatt.textContent = currentBatt + '%';
+      dbattbar.style.width = currentBatt + '%';
+      destsrange.textContent = currentRange + ' km';
+      
+      // Battery status update
+      if (currentBatt > 70) {
+        destsstatus.textContent = 'Healthy';
+        destsstatus.style.color = 'var(--green)';
+        destschg.textContent = '✓ Sufficient Battery: Smart charging suggested at off-peak hours.';
+        destschg.style.color = 'var(--cyan)';
+      } else if (currentBatt > 30) {
+        destsstatus.textContent = 'Medium';
+        destsstatus.style.color = 'var(--amber)';
+        destschg.textContent = '✓ Sufficient Battery: Smart charging suggested at off-peak hours.';
+        destschg.style.color = 'var(--cyan)';
+      } else {
+        destsstatus.textContent = 'Low';
+        destsstatus.style.color = 'var(--red)';
+        destschg.textContent = '⚠️ Low Battery: Recommend immediate charging.';
+        destschg.style.color = 'var(--red)';
+      }
+
       hist.push(c.speed);
       if (hist.length > 30) hist.shift();
       spark(document.getElementById('dspark'), hist);
     };
+
     update();
     const t = setInterval(update, 1500);
-    window.addEventListener('hashchange', () => clearInterval(t), { once: true });
+    window.addEventListener('hashchange', () => {
+      clearInterval(t);
+      delete window.endTrip;
+    }, { once: true });
   }
 
   function driverHealth(root, c) {
     root.innerHTML = `
       <h2 class="page-title">Vehicle Health</h2>
-      <div class="grid-3">
-        ${kpi('Battery Health', c.health + '%', c.health > 70 ? 'Excellent' : c.health > 40 ? 'Fair' : 'Service soon', c.health > 40 ? '' : 'down')}
-        ${kpi('Tire Condition', rint(60, 95) + '%', 'OK')}
-        ${kpi('Vehicle Condition', c.condition + '%', '')}
+      <div class="kpi-list">
+        ${kpiListItem('Battery Health', c.health + '%', c.health > 70 ? 'Excellent' : c.health > 40 ? 'Fair' : 'Service soon', c.health > 40 ? '' : 'down')}
+        ${kpiListItem('Tire Condition', rint(60, 95) + '%', 'OK')}
+        ${kpiListItem('Vehicle Condition', c.condition + '%', '')}
       </div>
       <div class="glass panel" style="margin-top:16px;">
         <h3>Service Alerts</h3>
@@ -2535,10 +3056,10 @@ async function updateUserProfile(userId, updates) {
     const safety = rint(70, 98), eco = rint(60, 95);
     root.innerHTML = `
       <h2 class="page-title">My Performance</h2>
-      <div class="grid-3">
-        ${kpi('Driving Score', safety, safety > 85 ? 'Excellent' : 'Good')}
-        ${kpi('Eco Score', eco, '+3 this week')}
-        ${kpi('Trips This Week', rint(8, 24), '')}
+      <div class="kpi-list">
+        ${kpiListItem('Driving Score', safety, safety > 85 ? 'Excellent' : 'Good')}
+        ${kpiListItem('Eco Score', eco, '+3 this week')}
+        ${kpiListItem('Trips This Week', rint(8, 24), '')}
       </div>
       <div class="glass panel" style="margin-top:16px;">
         <h3>Weekly Trend</h3>
@@ -2566,7 +3087,7 @@ async function updateUserProfile(userId, updates) {
   function exportPDF() {
     const w = window.open('', '_blank');
     const f = fleet();
-    w.document.write(`<html><head><title>VoltEdge Report</title><style>body{font-family:sans-serif;padding:20px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ccc;padding:6px;font-size:12px}h1{color:#2a5cff}</style></head><body><h1>VoltEdge EV — Fleet Report</h1><p>Generated ${new Date().toLocaleString()}</p><table><thead><tr><th>ID</th><th>Brand</th><th>Battery</th><th>Range</th><th>Driver</th><th>Revenue</th></tr></thead><tbody>${f.map(c => `<tr><td>${c.id}</td><td>${c.brand}</td><td>${c.battery}%</td><td>${c.range} km</td><td>${c.driver}</td><td>$${c.revenue}</td></tr>`).join('')}</tbody></table><script>window.print()</script></body></html>`);
+    w.document.write(`<html><head><title>VoltEdge Report</title><style>body{font-family:sans-serif;padding:20px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ccc;padding:6px;font-size:12px}h1{color:#2a5cff}</style></head><body><h1>VoltEdge EV — Fleet Report</h1><p>Generated ${new Date().toLocaleString()}</p><table><thead><tr><th>ID</th><th>Brand</th><th>Battery</th><th>Range</th><th>Driver</th><th>Revenue</th></tr></thead><tbody>${f.map(c => `<tr><td>${c.id}</td><td>${c.brand}</td><td>${c.battery}%</td><td>${c.range} km</td><td>${c.driver}</td><td>₹${c.revenue}</td></tr>`).join('')}</tbody></table><script>window.print()</script></body></html>`);
     w.document.close();
   }
 
