@@ -171,11 +171,38 @@ def predict_range():
         
         # Make prediction
         prediction = model.predict(input_scaled)
-        predicted_range = max(0, round(float(prediction[0]), 2))
+        raw_predicted_range = max(0, round(float(prediction[0]), 2))
+        
+        # Calculate theoretical maximum range based on battery percentage
+        # At X% battery, maximum possible range is X% of max_range_km
+        theoretical_max = (battery_percentage / 100) * max_range_km
+        # Add 10% tolerance for real-world variations (efficiency can be better than rated)
+        theoretical_max_with_tolerance = theoretical_max * 1.1
+        
+        # Apply multi-level capping:
+        # 1. Cannot exceed max range
+        # 2. Cannot significantly exceed theoretical max for current battery %
+        predicted_range = raw_predicted_range
+        cap_reason = None
+        
+        if raw_predicted_range > max_range_km:
+            predicted_range = max_range_km
+            cap_reason = f"Exceeded max range ({max_range_km} km)"
+            print(f"⚠️ Capped at max range: {raw_predicted_range} km → {max_range_km} km for {car_type}")
+        elif raw_predicted_range > theoretical_max_with_tolerance:
+            predicted_range = round(theoretical_max_with_tolerance, 2)
+            cap_reason = f"Exceeded theoretical max for {battery_percentage}% battery"
+            print(f"⚠️ Capped at theoretical max: {raw_predicted_range} km → {predicted_range} km ({battery_percentage}% of {max_range_km} km) for {car_type}")
+        else:
+            print(f"✅ Prediction within limits: {raw_predicted_range} km (theoretical max: {theoretical_max:.1f} km, max range: {max_range_km} km) for {car_type}")
         
         return jsonify({
             'success': True,
             'predicted_range_km': predicted_range,
+            'raw_prediction': raw_predicted_range,  # Add raw prediction for debugging
+            'max_range_km': max_range_km,  # Add max range for debugging
+            'theoretical_max': round(theoretical_max, 2),  # Show theoretical max
+            'cap_reason': cap_reason,  # Show if and why capped
             'inputs': {
                 'car_type': car_type,
                 'battery_percentage': battery_percentage,

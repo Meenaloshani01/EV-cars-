@@ -2929,7 +2929,20 @@ async function updateUserProfile(userId, updates) {
             <div style="font-size: 72px; font-weight: 700; color: var(--cyan); margin: 24px 0; text-shadow: 0 0 30px rgba(0, 231, 255, 0.5);">
               ${prediction.predictedRange} km
             </div>
-            <p style="color: var(--muted); font-size: 14px; margin-bottom: 32px;">Predicted Remaining Distance</p>
+            <p style="color: var(--muted); font-size: 14px; margin-bottom: 8px;">Predicted Remaining Distance</p>
+            
+            ${prediction.rawPrediction && prediction.maxRange ? `
+              <div style="font-size: 11px; color: var(--muted); margin-top: 8px; padding: 12px; background: rgba(255,255,255,0.02); border-radius: 6px;">
+                <div style="margin-bottom: 4px;">Raw ML Prediction: <span style="color: var(--text);">${prediction.rawPrediction} km</span></div>
+                <div style="margin-bottom: 4px;">Theoretical Max (${prediction.inputs.battery}%): <span style="color: var(--text);">${prediction.theoreticalMax || 'N/A'} km</span></div>
+                <div style="margin-bottom: 4px;">Max Range Limit: <span style="color: var(--text);">${prediction.maxRange} km</span></div>
+                ${prediction.capReason ? 
+                  `<div style="color: var(--amber); margin-top: 8px; padding: 6px; background: rgba(255,178,43,0.1); border-radius: 4px;">⚠️ ${prediction.capReason}</div>` : 
+                  '<div style="color: var(--green); margin-top: 8px;">✓ Prediction within realistic limits</div>'}
+              </div>
+            ` : ''}
+            
+            <p style="color: var(--muted); font-size: 14px; margin-top: 16px;">for <strong>${prediction.inputs.carType}</strong></p>
             
             <!-- Trip Details -->
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; text-align: left; margin-top: 32px;">
@@ -3133,6 +3146,10 @@ async function updateUserProfile(userId, updates) {
         if (result.success) {
           window._predictionResult = {
             predictedRange: Math.round(result.predictedRange),
+            rawPrediction: result.raw_prediction,  // Store raw prediction
+            maxRange: result.max_range_km,  // Store max range
+            theoreticalMax: result.theoretical_max,  // Store theoretical max
+            capReason: result.cap_reason,  // Store cap reason if any
             inputs: {
               carType,
               battery: batt,
