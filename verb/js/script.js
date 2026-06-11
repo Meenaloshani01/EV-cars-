@@ -143,6 +143,12 @@ async function updateUserProfile(userId, updates) {
     from: '2026-06-01',
     to: '2026-06-09'
   };
+  let _reportsFilterState = {
+    from: '2026-06-01',
+    to: '2026-06-09',
+    vehicleId: 'All',
+    driver: 'All'
+  };
 
   function getSearchedFleet(f) {
     const searchInput = document.querySelector('.search input');
@@ -154,6 +160,59 @@ async function updateUserProfile(userId, updates) {
       c.category.toLowerCase().includes(searchVal) ||
       c.driver.toLowerCase().includes(searchVal)
     );
+  }
+
+  function getFilteredReportsData(f) {
+    const fromDate = _reportsFilterState.from;
+    const toDate = _reportsFilterState.to;
+    const dates = [];
+    
+    if (fromDate && toDate) {
+      let curr = new Date(fromDate + 'T00:00:00Z');
+      const end = new Date(toDate + 'T00:00:00Z');
+      
+      if (!isNaN(curr.getTime()) && !isNaN(end.getTime())) {
+        let count = 0;
+        while (curr <= end && count < 90) {
+          dates.push(curr.toISOString().split('T')[0]);
+          curr.setUTCDate(curr.getUTCDate() + 1);
+          count++;
+        }
+      }
+    }
+
+    let filteredFleet = f;
+    if (_reportsFilterState.vehicleId !== 'All') {
+      filteredFleet = filteredFleet.filter(c => c.id === _reportsFilterState.vehicleId);
+    }
+    if (_reportsFilterState.driver !== 'All') {
+      filteredFleet = filteredFleet.filter(c => c.driver === _reportsFilterState.driver);
+    }
+
+    return filteredFleet.map(c => {
+      let revenue = 0;
+      let maintenance = 0;
+      let distance = 0;
+      
+      dates.forEach(d => {
+        const stats = getCarStatsForDate(c, d);
+        revenue += stats.revenue;
+        maintenance += stats.maintenance;
+        distance += stats.distance;
+      });
+
+      return {
+        id: c.id,
+        brand: c.brand,
+        category: c.category,
+        battery: c.battery,
+        range: c.range,
+        driver: c.driver,
+        revenue: revenue,
+        maintenance: maintenance,
+        distance: distance
+      };
+    });
   }
 
   function monitorAuthState() {
@@ -2237,30 +2296,79 @@ async function updateUserProfile(userId, updates) {
   }
 
   function renderReports(root, f) {
+    const reportData = getFilteredReportsData(f);
     root.innerHTML = `
       <h2 class="page-title">Reports <small>Generate &amp; download</small></h2>
       <div class="glass panel">
         <h3>Filters</h3>
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:12px;">
-          <div class="form-group"><label>From</label><input class="input" type="date"></div>
-          <div class="form-group"><label>To</label><input class="input" type="date"></div>
-          <div class="form-group"><label>Vehicle</label>
-            <select class="input"><option>All Vehicles</option>${f.map(c => `<option>${c.id} — ${c.brand}</option>`).join('')}</select></div>
-          <div class="form-group"><label>Driver</label>
-            <select class="input"><option>All Drivers</option>${Array.from(new Set(f.map(c => c.driver))).map(d => `<option>${d}</option>`).join('')}</select></div>
+          <div class="form-group">
+            <label>From</label>
+            <input class="input" type="date" id="repFrom" value="${_reportsFilterState.from}">
+          </div>
+          <div class="form-group">
+            <label>To</label>
+            <input class="input" type="date" id="repTo" value="${_reportsFilterState.to}">
+          </div>
+          <div class="form-group">
+            <label>Vehicle</label>
+            <select class="input" id="repVehicle">
+              <option value="All" ${_reportsFilterState.vehicleId === 'All' ? 'selected' : ''}>All Vehicles</option>
+              ${f.map(c => `<option value="${c.id}" ${_reportsFilterState.vehicleId === c.id ? 'selected' : ''}>${c.id} — ${c.brand}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Driver</label>
+            <select class="input" id="repDriver">
+              <option value="All" ${_reportsFilterState.driver === 'All' ? 'selected' : ''}>All Drivers</option>
+              ${Array.from(new Set(f.map(c => c.driver))).sort().map(d => `<option value="${d}" ${_reportsFilterState.driver === d ? 'selected' : ''}>${d}</option>`).join('')}
+            </select>
+          </div>
         </div>
-        <div style="display:flex; gap:10px; margin-top:8px;">
-          <button class="btn" onclick="VE.exportCSV()">⬇ Excel / CSV</button>
+        <div style="display:flex; gap:10px; margin-top:16px;">
+          <button class="btn" id="btnApplyReportsFilter">⚡ Apply Filters</button>
+          <button class="btn ghost" onclick="VE.exportCSV()">⬇ Excel / CSV</button>
           <button class="btn ghost" onclick="VE.exportPDF()">⬇ PDF Report</button>
         </div>
       </div>
       <div class="glass panel" style="margin-top:16px;">
         <h3>Preview</h3>
-        <table><thead><tr><th>Vehicle</th><th>Driver</th><th>Battery</th><th>Range</th><th>Revenue</th><th>Maintenance</th></tr></thead><tbody>
-          ${f.map(c => `<tr><td>${c.id} · ${c.brand}</td><td>${c.driver}</td><td>${c.battery}%</td><td>${c.range} km</td><td>$${c.revenue}</td><td>$${c.maintenance}</td></tr>`).join('')}
-        </tbody></table>
+        <table>
+          <thead>
+            <tr>
+              <th>Vehicle</th>
+              <th>Driver</th>
+              <th>Battery</th>
+              <th>Range</th>
+              <th>Revenue</th>
+              <th>Maintenance</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${reportData.length === 0 ? `
+              <tr><td colspan="6" style="text-align:center; color:var(--muted);">No records match the selected filters.</td></tr>
+            ` : reportData.map(c => `
+              <tr>
+                <td>${c.id} · ${c.brand}</td>
+                <td>${c.driver}</td>
+                <td>${c.battery}%</td>
+                <td>${c.range} km</td>
+                <td style="color:var(--green); font-weight:600;">$${c.revenue.toLocaleString()}</td>
+                <td style="color:${c.maintenance > 0 ? 'var(--red)' : 'var(--text)'}">$${c.maintenance.toLocaleString()}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
       </div>
     `;
+
+    document.getElementById('btnApplyReportsFilter').addEventListener('click', () => {
+      _reportsFilterState.from = document.getElementById('repFrom').value;
+      _reportsFilterState.to = document.getElementById('repTo').value;
+      _reportsFilterState.vehicleId = document.getElementById('repVehicle').value;
+      _reportsFilterState.driver = document.getElementById('repDriver').value;
+      renderReports(root, f);
+    });
   }
 
   // ---------- DRIVER ----------
@@ -2555,18 +2663,76 @@ async function updateUserProfile(userId, updates) {
   }
 
   // ---------- Export ----------
-  function exportCSV() {
-    const f = fleet();
-    const headers = ['id', 'brand', 'category', 'battery', 'range', 'speed', 'driver', 'revenue', 'maintenance'];
-    const rows = f.map(c => headers.map(h => c[h]).join(','));
+  async function exportCSV() {
+    const rawFleet = await fleet();
+    const reportData = getFilteredReportsData(rawFleet);
+    const headers = ['Vehicle ID', 'Brand', 'Category', 'Driver', 'Battery', 'Range (km)', 'Revenue (USD)', 'Maintenance (USD)', 'Distance (km)'];
+    const keys = ['id', 'brand', 'category', 'driver', 'battery', 'range', 'revenue', 'maintenance', 'distance'];
+    const rows = reportData.map(row => keys.map(k => {
+      let val = row[k];
+      if (typeof val === 'string' && val.includes(',')) {
+        return `"${val}"`;
+      }
+      return val;
+    }).join(','));
     const csv = headers.join(',') + '\n' + rows.join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'voltedge_fleet.csv'; a.click();
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `voltedge_report_${_reportsFilterState.from}_to_${_reportsFilterState.to}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
   }
-  function exportPDF() {
+  async function exportPDF() {
+    const rawFleet = await fleet();
+    const reportData = getFilteredReportsData(rawFleet);
     const w = window.open('', '_blank');
-    const f = fleet();
-    w.document.write(`<html><head><title>VoltEdge Report</title><style>body{font-family:sans-serif;padding:20px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ccc;padding:6px;font-size:12px}h1{color:#2a5cff}</style></head><body><h1>VoltEdge EV — Fleet Report</h1><p>Generated ${new Date().toLocaleString()}</p><table><thead><tr><th>ID</th><th>Brand</th><th>Battery</th><th>Range</th><th>Driver</th><th>Revenue</th></tr></thead><tbody>${f.map(c => `<tr><td>${c.id}</td><td>${c.brand}</td><td>${c.battery}%</td><td>${c.range} km</td><td>${c.driver}</td><td>$${c.revenue}</td></tr>`).join('')}</tbody></table><script>window.print()</script></body></html>`);
+    w.document.write(`<html><head><title>VoltEdge Report</title><style>
+      body{font-family:sans-serif;padding:20px;background:#f8f9fa;color:#333}
+      table{width:100%;border-collapse:collapse;margin-top:20px}
+      td,th{border:1px solid #dee2e6;padding:12px;font-size:13px;text-align:left}
+      th{background:#2a5cff;color:white}
+      tr:nth-child(even){background:#f1f3f5}
+      h1{color:#2a5cff;margin-bottom:5px}
+      .meta{font-size:12px;color:#666;margin-bottom:20px}
+    </style></head><body>
+      <h1>VoltEdge EV — Fleet Report</h1>
+      <div class="meta">
+        Generated: ${new Date().toLocaleString()}<br>
+        Period: ${_reportsFilterState.from} to ${_reportsFilterState.to}<br>
+        Vehicle: ${_reportsFilterState.vehicleId === 'All' ? 'All Vehicles' : _reportsFilterState.vehicleId}<br>
+        Driver: ${_reportsFilterState.driver === 'All' ? 'All Drivers' : _reportsFilterState.driver}
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Vehicle ID</th>
+            <th>Brand</th>
+            <th>Driver</th>
+            <th>Battery</th>
+            <th>Range</th>
+            <th>Revenue</th>
+            <th>Maintenance</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${reportData.map(c => `
+            <tr>
+              <td>${c.id}</td>
+              <td>${c.brand}</td>
+              <td>${c.driver}</td>
+              <td>${c.battery}%</td>
+              <td>${c.range} km</td>
+              <td>$${c.revenue.toLocaleString()}</td>
+              <td>$${c.maintenance.toLocaleString()}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <script>window.print()</script>
+    </body></html>`);
     w.document.close();
   }
 

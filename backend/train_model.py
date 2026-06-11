@@ -14,6 +14,8 @@ import os
 
 # Configuration
 DATA_PATH = r"C:\Users\HP\Desktop\EV_Fleet_City_Highway_25000.xlsx"
+if not os.path.exists(DATA_PATH):
+    DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'EV_Fleet_City_Highway_25000.xlsx')
 MODEL_DIR = os.path.join(os.path.dirname(__file__), '..')
 MODEL_PATH = os.path.join(MODEL_DIR, 'ev_model.pkl')
 SCALER_PATH = os.path.join(MODEL_DIR, 'ev_scaler.pkl')
